@@ -9,7 +9,7 @@ so it can be re-uploaded later to continue editing.
   database, no accounts. Everything runs in the browser; AniList's public GraphQL API
   is called directly from the client (rate-limited). Settings persist in
   `localStorage` only.
-- **Spec (draft):** [docs/top-trumps-spec.md](docs/top-trumps-spec.md)
+- **Spec:** [docs/top-trumps-spec.md](docs/top-trumps-spec.md)
 - **Review pipeline:** every non-draft PR is reviewed by a fenced vibe-cli session on a
   self-hosted runner — see [qStivi/review-pipeline](https://github.com/qStivi/review-pipeline).
   Repo-specific review criteria: [REVIEW.md](REVIEW.md), [CRITICAL_PATHS.md](CRITICAL_PATHS.md).
