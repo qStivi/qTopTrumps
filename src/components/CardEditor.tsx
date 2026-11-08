@@ -39,7 +39,11 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
   return (
     <div className="editor">
       <div className="card-preview" aria-label="Card preview">
-        {effective.image && <img className="card-image" src={effective.image} alt={effective.characterName} />}
+        {effective.image ? (
+          <img className="card-image" src={effective.image} alt={effective.characterName} />
+        ) : (
+          <div className="card-image placeholder">No image yet</div>
+        )}
         <div className="card-body">
           <h2 className="card-name">{effective.characterName}</h2>
           {effective.animeTitles.length > 0 && (
@@ -57,6 +61,15 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       </div>
 
       <div className="editor-controls">
+        <label className="name-field">
+          Character name
+          <input
+            type="text"
+            value={card.characterName}
+            placeholder="New card"
+            onChange={(e) => onChange({ ...card, characterName: e.target.value })}
+          />
+        </label>
         <h3>Attributes</h3>
         {card.attributes.map((a) => (
           <div className="attr-row" key={a.key}>
