@@ -25,10 +25,20 @@ function crc32(bytes: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0
 }
 
+const ANIME_DELIMITER = '\x1f'
+
+function escapeValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+}
+
+function unescapeValue(value: string): string {
+  return value.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\\\/g, '\\')
+}
+
 function encodePayload(card: CardData): string {
   const lines = [
-    `name=${card.characterName}`,
-    `anime=${card.animeTitles.join(' | ')}`,
+    `name=${escapeValue(card.characterName)}`,
+    `anime=${card.animeTitles.map(escapeValue).join(ANIME_DELIMITER)}`,
     ...card.attributes.map((a) => `attr.${a.key}=${a.value === null ? '' : a.value}${a.trump ? '*' : ''}`),
   ]
   return lines.join('\n')
@@ -42,8 +52,8 @@ function decodePayload(text: string): Partial<CardData> {
     if (eq <= 0) continue
     const key = line.slice(0, eq)
     const value = line.slice(eq + 1)
-    if (key === 'name') out.characterName = value
-    else if (key === 'anime') out.animeTitles = value ? value.split(' | ') : []
+    if (key === 'name') out.characterName = unescapeValue(value)
+    else if (key === 'anime') out.animeTitles = value ? value.split(ANIME_DELIMITER).map(unescapeValue) : []
     else if (key.startsWith('attr.')) {
       const attrKey = key.slice(5) as AttributeKey
       const attr = attrs.find((a) => a.key === attrKey)
