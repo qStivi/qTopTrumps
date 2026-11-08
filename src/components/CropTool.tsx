@@ -38,6 +38,7 @@ export function CropTool({ imageSrc, defaultBackground, onDone, onCancel }: Crop
 
   useEffect(() => {
     const img = new Image()
+    if (!imageSrc.startsWith('data:')) img.crossOrigin = 'anonymous'
     img.onload = () => {
       setImgSize({ w: img.naturalWidth, h: img.naturalHeight })
       setCrop(cropToFill(img.naturalWidth, img.naturalHeight))
@@ -109,6 +110,7 @@ export function CropTool({ imageSrc, defaultBackground, onDone, onCancel }: Crop
     ctx.fillStyle = background
     ctx.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT)
     const img = new Image()
+    if (!imageSrc.startsWith('data:')) img.crossOrigin = 'anonymous'
     img.onload = () => {
       const sx = Math.max(0, crop.x)
       const sy = Math.max(0, crop.y)
