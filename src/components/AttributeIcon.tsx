@@ -1,6 +1,6 @@
 import type { AttributeKey } from '../card/attributes.ts'
 
-const ICONS: Record<AttributeKey, { color: string; path: string }> = {
+export const ICONS: Record<AttributeKey, { color: string; path: string }> = {
   power: {
     color: '#fab387',
     path: 'M3 21l1-4L15 6l3 3L7 20l-4 1zm11-13l2-2 3 3-2 2-3-3z',
