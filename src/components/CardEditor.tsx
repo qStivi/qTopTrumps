@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
 import { AttributeIcon } from './AttributeIcon.tsx'
+import { CropTool } from './CropTool.tsx'
+import { extractPayload, embedPayload } from '../card/pngMetadata.ts'
+import { renderCardPng } from '../card/renderCard.ts'
 import { displayedValue, isTrumped } from '../card/cardData.ts'
 import { loadTrumpMaxSettings, saveTrumpMaxSettings } from '../card/settings.ts'
 import type { CardData, TrumpMaxSettings } from '../card/types.ts'
@@ -12,6 +15,7 @@ interface CardEditorProps {
 
 export function CardEditor({ card, onChange }: CardEditorProps) {
   const [trumpMax, setTrumpMax] = useState<TrumpMaxSettings>(() => loadTrumpMaxSettings())
+  const [pendingImage, setPendingImage] = useState<string | null>(null)
 
   const effective = useMemo(
     () => ({
@@ -35,6 +39,38 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
     const next = { ...trumpMax, [key]: max }
     setTrumpMax(next)
     saveTrumpMaxSettings(next)
+  }
+
+  async function onFileChosen(file: File) {
+    const restored = await extractPayload(file)
+    if (restored) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        onChange({
+          ...card,
+          characterName: restored.characterName ?? card.characterName,
+          animeTitles: restored.animeTitles ?? card.animeTitles,
+          attributes: restored.attributes ?? card.attributes,
+          image: String(reader.result),
+        })
+      }
+      reader.readAsDataURL(file)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => setPendingImage(String(reader.result))
+    reader.readAsDataURL(file)
+  }
+
+  async function downloadCard() {
+    const png = await renderCardPng(card, trumpMax)
+    const withData = await embedPayload(png, card)
+    const url = URL.createObjectURL(withData)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${card.characterName || 'card'}.png`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -61,6 +97,36 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       </div>
 
       <div className="editor-controls">
+        <div className="image-controls">
+          <label className="ghost-button upload-button">
+            Upload image
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                void onFileChosen(file)
+                e.target.value = ''
+              }}
+            />
+          </label>
+          <button type="button" className="ghost-button" onClick={() => void downloadCard()}>
+            Download PNG
+          </button>
+        </div>
+        {pendingImage && (
+          <CropTool
+            imageSrc={pendingImage}
+            defaultBackground="#1e1e2e"
+            onDone={(dataUrl) => {
+              onChange({ ...card, image: dataUrl })
+              setPendingImage(null)
+            }}
+            onCancel={() => setPendingImage(null)}
+          />
+        )}
         <label className="name-field">
           Character name
           <input

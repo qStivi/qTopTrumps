@@ -1,0 +1,124 @@
+import { ATTRIBUTE_LABELS } from './attributes.ts'
+import { displayedValue, isTrumped } from './cardData.ts'
+import { ICONS } from './icons.ts'
+import type { CardData, TrumpMaxSettings } from './types.ts'
+
+export const CARD_W = 630
+export const CARD_H = 880
+
+const COLORS = {
+  base: '#1e1e2e',
+  mantle: '#181825',
+  crust: '#11111b',
+  surface0: '#313244',
+  mauve: '#cba6f7',
+  text: '#cdd6f4',
+  subtext: '#a6adc8',
+}
+
+export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings): Promise<Blob> {
+  const canvas = document.createElement('canvas')
+  canvas.width = CARD_W
+  canvas.height = CARD_H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas 2D not available')
+
+  ctx.fillStyle = COLORS.mantle
+  ctx.fillRect(0, 0, CARD_W, CARD_H)
+
+  const nameBarH = 56
+  const iconsH = 170
+  const footerH = 44
+  const imageH = CARD_H - nameBarH - iconsH - footerH
+
+  if (card.image) {
+    const img = await loadImage(card.image)
+    const scale = Math.max(CARD_W / img.naturalWidth, imageH / img.naturalHeight)
+    const w = img.naturalWidth * scale
+    const h = img.naturalHeight * scale
+    ctx.drawImage(img, (CARD_W - w) / 2, (imageH - h) / 2, w, h)
+  } else {
+    ctx.fillStyle = COLORS.surface0
+    ctx.fillRect(0, 0, CARD_W, imageH)
+  }
+
+  ctx.fillStyle = COLORS.crust
+  ctx.fillRect(0, imageH, CARD_W, nameBarH)
+  ctx.fillStyle = COLORS.text
+  ctx.font = '700 30px system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(card.characterName || 'New card', CARD_W / 2, imageH + nameBarH / 2, CARD_W - 32)
+
+  const cellW = CARD_W / 6
+  const attrs = card.attributes.map((a) => ({
+    ...a,
+    trump: isTrumped(a.value, a.trump, trumpMax[a.key]),
+  }))
+  attrs.forEach((a, i) => {
+    const cx = i * cellW + cellW / 2
+    const cy = imageH + nameBarH + iconsH / 2
+    if (a.trump) {
+      ctx.fillStyle = COLORS.surface0
+      ctx.strokeStyle = COLORS.mauve
+      ctx.lineWidth = 4
+      roundRect(ctx, i * cellW + 8, imageH + nameBarH + 14, cellW - 16, iconsH - 28, 12)
+      ctx.fill()
+      ctx.stroke()
+    }
+    const icon = ICONS[a.key]
+    ctx.save()
+    ctx.translate(cx - 22, cy - 46)
+    ctx.scale(44 / 24, 44 / 24)
+    ctx.strokeStyle = icon.color
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.stroke(new Path2D(icon.path))
+    ctx.restore()
+
+    ctx.fillStyle = a.trump ? COLORS.mauve : COLORS.text
+    ctx.font = '700 26px system-ui, sans-serif'
+    ctx.fillText(displayedValue(a.value, a.trump), cx, cy + 8)
+
+    ctx.fillStyle = COLORS.subtext
+    ctx.font = '15px system-ui, sans-serif'
+    ctx.fillText(ATTRIBUTE_LABELS[a.key].toUpperCase(), cx, cy + 38, cellW - 12)
+  })
+
+  ctx.fillStyle = COLORS.crust
+  ctx.fillRect(0, CARD_H - footerH, CARD_W, footerH)
+  ctx.fillStyle = COLORS.subtext
+  ctx.font = '20px system-ui, sans-serif'
+  ctx.fillText(card.animeTitles.join(', ') || '—', CARD_W / 2, CARD_H - footerH / 2, CARD_W - 32)
+
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encode failed'))), 'image/png'),
+  )
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Image failed to load'))
+    img.src = src
+  })
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
