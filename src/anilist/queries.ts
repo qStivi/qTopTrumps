@@ -22,18 +22,16 @@ const SEARCH_CHARACTERS = `
 
 const USER_ANIME_LIST = `
   query ($userName: String!, $page: Int!, $perPage: Int!) {
-    Page(page: $page, perPage: $perPage) {
-      pageInfo { currentPage hasNextPage }
-      mediaListCollection(userName: $userName, type: ANIME, perPage: 50) {
-        lists {
-          entries {
-            score(format: POINT_100)
-            media {
-              title { romaji }
-              characters(page: 1, perPage: 25) {
-                nodes {
-                  ${CHARACTER_FIELDS}
-                }
+    MediaListCollection(userName: $userName, type: ANIME, page: $page, perPage: $perPage) {
+      hasNextChunk
+      lists {
+        entries {
+          score(format: POINT_100)
+          media {
+            title { romaji }
+            characters(page: 1, perPage: 25) {
+              nodes {
+                ${CHARACTER_FIELDS}
               }
             }
           }
@@ -99,24 +97,22 @@ export async function fetchUserCharacters(
 
   while (hasNextPage && page <= maxPages) {
     const data = await anilistQuery<{
-      Page: {
-        pageInfo: { currentPage: number; hasNextPage: boolean }
-        mediaListCollection: {
-          lists: {
-            entries: ({
-              score: number | null
-              media: {
-                title: { romaji: string | null }
-                characters: { nodes: RawCharacter[] }
-              } | null
-            } | null)[]
-          }[]
-        } | null
+      MediaListCollection: {
+        hasNextChunk: boolean
+        lists: {
+          entries: ({
+            score: number | null
+            media: {
+              title: { romaji: string | null }
+              characters: { nodes: RawCharacter[] }
+            } | null
+          } | null)[]
+        }[]
       } | null
     }>(USER_ANIME_LIST, { userName, page, perPage: 25 })
 
-    if (!data.Page?.mediaListCollection) break
-    const collection = data.Page.mediaListCollection
+    if (!data.MediaListCollection) break
+    const collection = data.MediaListCollection
 
     for (const list of collection.lists) {
       for (const entry of list.entries ?? []) {
@@ -140,7 +136,7 @@ export async function fetchUserCharacters(
       }
     }
 
-    hasNextPage = data.Page?.pageInfo.hasNextPage ?? false
+    hasNextPage = collection.hasNextChunk
     page += 1
   }
 
