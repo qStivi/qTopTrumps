@@ -42,10 +42,10 @@ jobs:
             done
           done <<< "$CHANGED"
           if [ "$HIGH" = "yes" ]; then
-            gh pr edit "$PR_NUMBER" --add-label "high risk" 2>/dev/null || \
-              gh pr comment "$PR_NUMBER" --body "**high risk** — diff touches a critical path (CRITICAL_PATHS.md). Requires independent review before merge."
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "high risk" 2>/dev/null || \
+              gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "**high risk** — diff touches a critical path (CRITICAL_PATHS.md). Requires independent review before merge."
             echo "labeled high"
           else
-            gh pr edit "$PR_NUMBER" --remove-label "high risk" 2>/dev/null || true
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "high risk" 2>/dev/null || true
             echo "not high"
           fi
