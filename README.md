@@ -29,3 +29,5 @@ Pushes to `main` deploy automatically (`.github/workflows/deploy.yml`) to the ho
 CT 149 `qtoptrumps` via the self-hosted runner, served at
 [https://qtoptrumps.qstivi.com](https://qtoptrumps.qstivi.com) (Cloudflare Tunnel) and
 `qtoptrumps.lab.qstivi.com` on the LAN.
+
+<!-- pipeline verification marker -->
