@@ -1,7 +1,7 @@
-# Top Trumps Card Generator (Anime Characters) — Draft Spec
+# Top Trumps Card Generator (Anime Characters) — Spec
 
-> **Status: DRAFT v0.2.** Captured from a brainstorming session. To be completed and
-> finalized after review with a friend. Open questions are collected at the bottom.
+> **Status: FINAL v1.0.** All open questions from the draft have been resolved; see
+> section 6 for the decisions.
 >
 > Scope note: this tool lives in its own repository (**qTopTrumps**), alongside the
 > existing AniList projects (qanimetierlist, qanimeranker), and reuses their AniList
@@ -27,13 +27,13 @@ image itself, so the image can be re-uploaded later to continue editing.
 
 ### 2.1 Getting a character (AniList)
 
-Two candidate sources, possibly both:
+Both sources are in V1:
 
 - **List browsing:** enter an AniList username and show characters from that user's
-  list. Possible filters (ideas, to be decided): only **Completed** anime, minimum
-  score threshold, sorted by the viewer's own score, etc.
-- **Search:** a search bar querying AniList for any character matching the input.
-  Options to match against **name** and/or **description** (any keyword).
+  list. No mandatory filters; optional filters (e.g. only **Completed** anime, minimum
+  score) may be added if they fit naturally, sorted by the viewer's own score by default.
+- **Search:** a search bar querying AniList for any character matching the input,
+  matched against **name** and **description** (any keyword).
 
 For each chosen character, AniList provides: name, anime name(s), description, and the
 **largest available image** (used as the default card image).
@@ -46,8 +46,8 @@ naturally.
 
 - Fixed card **aspect ratio**; the crop tool enforces it. No "shrink to fit" / "stretch
   to fit" modes.
-- Fixed set of attributes. Candidate list (5–6, to be finalized):
-  **Fighting Power, Age, Height, Cuteness, Bust Size, Weight**.
+- Fixed set of six attributes:
+  **Power, Age, Height, Weight, Bust Size, Cuteness**.
 - Character **description** displayed on the card so info can be extracted into attributes.
 
 ### 2.3 Image handling
@@ -68,7 +68,8 @@ naturally.
   counts as a trump (e.g. Cuteness = 10 ⇒ any card with Cuteness 10 is marked).
 - **Manual trump marking:** any attribute can be manually flagged as a trump; a card can
   have **multiple** trump values.
-- Trump symbol/visual: TBD (design decision).
+- Trump visual: plain text — a `*` is appended to the trumped attribute's value on the
+  card (e.g. `10*`). No icons or special graphics.
 
 ### 2.5 Export / save
 
@@ -77,16 +78,16 @@ naturally.
   a small payload — a few key-value entries, not necessarily full JSON. Fields: character
   name, anime name, each attribute value + trump flags. The image pixels themselves carry
   no special payload requirement.
-- Embedding mechanism: image metadata (e.g. PNG text chunks); exact format TBD, chosen so
-  a few lines of key-value data round-trip reliably. File type chosen at download time
-  (must be a format that preserves the metadata, e.g. PNG; maybe others).
+- Embedding mechanism: PNG `tEXt`/`zTXt` chunks — the only export format. JPEG and
+  WebP are **not** offered: they don't reliably preserve the text chunks through
+  re-encoding, which would break the round-trip on re-upload (REVIEW.md failure mode #2).
 - **Re-upload flow:** uploading a previously exported card image restores the full card
   state into the editor for modification.
 
 ### 2.6 Theming
 
-- Preferred direction: **Catppuccin Mocha**, consistent with the look of the existing
-  tools; custom designs also welcome.
+- **Catppuccin Mocha**, consistent with the look of the existing tools (qanimetierlist,
+  qanimeranker).
 - Simple, snappy animations while creating cards.
 
 ## 3. Architecture (inherited from qanimetierlist)
@@ -121,12 +122,15 @@ naturally.
 - **V4 (maybe) — General playing-card designer:** expand custom templates into full
   custom card games (own Magic/Pokémon/YGO-style cards). Still designer-only, no database.
 
-## 6. Open questions (to resolve with friend before finalizing)
+## 6. Resolved decisions (from draft v0.2 open questions)
 
-1. Final attribute list — five or six? (Fighting Power, Age, Height, Cuteness, Bust Size,
-   Weight?)
-2. Character sourcing: list browsing, search, or both? Which list filters/sorts?
-3. Trump symbol design; animation ideas.
-4. Theme: Catppuccin Mocha or a custom design?
-5. Exact embedded-data format and supported export file types.
-6. Background-color default for over-crop; default trump-max values per attribute.
+1. **Attributes (6):** Power, Age, Height, Weight, Bust Size, Cuteness.
+2. **Character sourcing:** both AniList list browsing and free-text search; no mandatory
+   list filters in V1.
+3. **Trump marker:** plain `*` appended to the trumped value text; no icon/animation.
+4. **Theme:** Catppuccin Mocha.
+5. **Export format:** PNG only (`tEXt`/`zTXt` chunks). JPEG/WebP were considered and
+   rejected — they strip the embedded card data on re-upload.
+6. **Defaults:** over-crop overflow background defaults to a Catppuccin Mocha base color;
+   default trump-max is 10 per attribute, editable in settings (persisted in
+   `localStorage`).
