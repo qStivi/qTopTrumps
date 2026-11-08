@@ -159,10 +159,9 @@
 
 .editor {
   display: flex;
+  flex-direction: column;
   gap: 24px;
-  align-items: flex-start;
-  text-align: left;
-  flex-wrap: wrap;
+  align-items: center;
 }
 
 .card-preview {
@@ -251,11 +250,12 @@
 }
 
 .editor-controls {
-  flex: 1;
-  min-width: 260px;
+  width: 100%;
+  max-width: 560px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  text-align: left;
 
   h3 {
     margin: 0 0 4px;
