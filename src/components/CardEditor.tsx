@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
+import { AttributeIcon } from './AttributeIcon.tsx'
 import { displayedValue, isTrumped } from '../card/cardData.ts'
 import { loadTrumpMaxSettings, saveTrumpMaxSettings } from '../card/settings.ts'
 import type { CardData, TrumpMaxSettings } from '../card/types.ts'
@@ -44,19 +45,18 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
         ) : (
           <div className="card-image placeholder">No image yet</div>
         )}
-        <div className="card-body">
-          <h2 className="card-name">{effective.characterName}</h2>
-          {effective.animeTitles.length > 0 && (
-            <p className="card-anime">{effective.animeTitles.join(', ')}</p>
-          )}
-          <ul className="card-attributes">
-            {effective.attributes.map((a) => (
-              <li key={a.key} className={a.trump ? 'trump' : ''}>
-                <span className="attr-label">{ATTRIBUTE_LABELS[a.key]}</span>
-                <span className="attr-value">{displayedValue(a.value, a.trump)}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="card-name-bar">{effective.characterName || 'New card'}</div>
+        <div className="card-icons">
+          {effective.attributes.map((a) => (
+            <div key={a.key} className={`card-icon-cell${a.trump ? ' trump' : ''}`}>
+              <AttributeIcon attribute={a.key} />
+              <span className="card-icon-value">{displayedValue(a.value, a.trump)}</span>
+              <span className="card-icon-label">{ATTRIBUTE_LABELS[a.key]}</span>
+            </div>
+          ))}
+        </div>
+        <div className="card-footer">
+          {effective.animeTitles.length > 0 ? effective.animeTitles.join(', ') : '—'}
         </div>
       </div>
 
