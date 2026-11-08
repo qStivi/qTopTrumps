@@ -184,51 +184,68 @@
   background: var(--surface0);
 }
 
-.card-body {
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 0;
-}
-
-.card-name {
-  font-size: 16px;
+.card-name-bar {
+  background: var(--crust);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 15px;
+  text-align: center;
+  padding: 6px 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.card-anime {
-  color: var(--blue);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.card-attributes {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
+.card-icons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
   gap: 2px;
+  padding: 8px 6px;
+  background: var(--mantle);
+  flex: 1;
+  align-content: start;
 }
 
-.card-attributes li {
+.card-icon-cell {
   display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--surface0);
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  border-radius: 6px;
 
   &.trump {
-    background: var(--mauve);
-    color: var(--crust);
-    font-weight: 700;
+    background: var(--surface0);
+    outline: 2px solid var(--mauve);
+    .card-icon-value {
+      color: var(--mauve);
+      font-weight: 700;
+    }
   }
+}
+
+.card-icon-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.card-icon-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--subtext);
+}
+
+.card-footer {
+  background: var(--crust);
+  color: var(--subtext);
+  font-size: 11px;
+  text-align: center;
+  padding: 5px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-controls {
