@@ -36,11 +36,19 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
     const scale = Math.max(CARD_W / img.naturalWidth, imageH / img.naturalHeight)
     const w = img.naturalWidth * scale
     const h = img.naturalHeight * scale
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, CARD_W, imageH)
+    ctx.clip()
     ctx.drawImage(img, (CARD_W - w) / 2, (imageH - h) / 2, w, h)
+    ctx.restore()
   } else {
     ctx.fillStyle = COLORS.surface0
     ctx.fillRect(0, 0, CARD_W, imageH)
   }
+
+  ctx.fillStyle = COLORS.mantle
+  ctx.fillRect(0, imageH + nameBarH, CARD_W, iconsH)
 
   ctx.fillStyle = COLORS.crust
   ctx.fillRect(0, imageH, CARD_W, nameBarH)
