@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { CharacterPicker } from './components/CharacterPicker.tsx'
+import { CardEditor } from './components/CardEditor.tsx'
+import { cardFromCharacter } from './card/cardData.ts'
 import type { Character } from './anilist/types.ts'
+import type { CardData } from './card/types.ts'
 import './App.css'
 
 function App() {
   const [selected, setSelected] = useState<Character | null>(null)
+  const [card, setCard] = useState<CardData | null>(null)
+
+  function selectCharacter(character: Character) {
+    setSelected(character)
+    setCard(cardFromCharacter(character))
+  }
 
   return (
     <main className="app">
@@ -13,20 +22,9 @@ function App() {
         <p>Pick an anime character to build a Top Trumps card.</p>
       </header>
 
-      <CharacterPicker onSelect={setSelected} selected={selected} />
+      <CharacterPicker onSelect={selectCharacter} selected={selected} />
 
-      {selected && (
-        <aside className="selected-panel">
-          {selected.image && <img src={selected.image} alt={selected.name} />}
-          <div>
-            <h2>{selected.name}</h2>
-            {selected.animeTitles.length > 0 && (
-              <p className="anime">{selected.animeTitles.join(', ')}</p>
-            )}
-            {selected.description && <p className="description">{selected.description}</p>}
-          </div>
-        </aside>
-      )}
+      {card && <CardEditor card={card} onChange={setCard} />}
     </main>
   )
 }
