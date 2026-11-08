@@ -22,7 +22,7 @@ const SEARCH_CHARACTERS = `
 
 const USER_ANIME_LIST = `
   query ($userName: String!, $page: Int!, $perPage: Int!) {
-    MediaListCollection(userName: $userName, type: ANIME, page: $page, perPage: $perPage) {
+    MediaListCollection(userName: $userName, type: ANIME, chunk: $page, perChunk: $perPage) {
       hasNextChunk
       lists {
         entries {
