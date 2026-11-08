@@ -1,0 +1,32 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, qtoptrumps]
+    steps:
+      - name: Update working copy
+        run: |
+          cd /opt/qtoptrumps-prod
+          git fetch origin main
+          git reset --hard origin/main
+      - name: Install and build
+        run: |
+          cd /opt/qtoptrumps-prod
+          npm ci
+          npm run build
+      - name: (Re)start app
+        run: |
+          # First deploy on a fresh CT: no PM2 process exists yet — start instead of restart
+          if pm2 describe qtoptrumps-prod >/dev/null 2>&1; then
+            pm2 restart qtoptrumps-prod
+          else
+            pm2 start /usr/bin/serve --name qtoptrumps-prod -- -s /opt/qtoptrumps-prod/dist -l 3000
+          fi
+          pm2 save
