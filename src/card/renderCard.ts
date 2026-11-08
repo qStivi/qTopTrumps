@@ -1,6 +1,6 @@
 import { ATTRIBUTE_LABELS } from './attributes.ts'
 import { displayedValue, isTrumped } from './cardData.ts'
-import { ICONS } from '../components/AttributeIcon.tsx'
+import { ICONS } from './icons.ts'
 import type { CardData, TrumpMaxSettings } from './types.ts'
 
 export const CARD_W = 630
