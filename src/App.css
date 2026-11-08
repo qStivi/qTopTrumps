@@ -156,3 +156,126 @@
     overflow: hidden;
   }
 }
+
+.editor {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  text-align: left;
+  flex-wrap: wrap;
+}
+
+.card-preview {
+  width: 280px;
+  aspect-ratio: 63 / 88;
+  border-radius: 12px;
+  border: 2px solid var(--mauve);
+  background: var(--mantle);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.card-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background: var(--surface0);
+}
+
+.card-body {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+
+.card-name {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-anime {
+  color: var(--blue);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-attributes {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-attributes li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface0);
+
+  &.trump {
+    background: var(--mauve);
+    color: var(--crust);
+    font-weight: 700;
+  }
+}
+
+.editor-controls {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  h3 {
+    margin: 0 0 4px;
+    color: var(--text);
+  }
+}
+
+.attr-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--mantle);
+  border: 1px solid var(--border);
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--subtext);
+    font-size: 14px;
+    flex: 1;
+  }
+
+  input[type='number'] {
+    width: 64px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--base);
+    color: var(--text);
+    font: inherit;
+  }
+
+  .trump-toggle,
+  .trump-max {
+    flex: 0 0 auto;
+    color: var(--subtext);
+    font-size: 13px;
+  }
+}
