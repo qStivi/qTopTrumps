@@ -123,12 +123,19 @@ export async function fetchUserCharacters(
         if (!entry?.media) continue
         const animeTitle = entry.media.title.romaji ?? ''
         for (const raw of entry.media.characters.nodes) {
+          const incoming = toCharacter(raw, animeTitle ? [animeTitle] : [])
           const existing = byId.get(raw.id)
-          const character = toCharacter(raw, animeTitle ? [animeTitle] : [])
-          if (existing) {
-            character.animeTitles = [...new Set([...existing.animeTitles, ...character.animeTitles])]
+          if (!existing) {
+            byId.set(raw.id, incoming)
+            continue
           }
-          byId.set(raw.id, character)
+          byId.set(raw.id, {
+            id: existing.id,
+            name: existing.name ?? incoming.name,
+            image: existing.image ?? incoming.image,
+            description: existing.description ?? incoming.description,
+            animeTitles: [...new Set([...existing.animeTitles, ...incoming.animeTitles])],
+          })
         }
       }
     }

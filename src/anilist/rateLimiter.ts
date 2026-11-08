@@ -7,8 +7,23 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 export class RateLimiter {
   private timestamps: number[] = []
   private lastRequestAt = 0
+  private lock: Promise<void> = Promise.resolve()
 
   async acquire(): Promise<void> {
+    const previous = this.lock
+    let release!: () => void
+    this.lock = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await previous
+    try {
+      await this.acquireLocked()
+    } finally {
+      release()
+    }
+  }
+
+  private async acquireLocked(): Promise<void> {
     const gapWait = MIN_GAP_MS - (Date.now() - this.lastRequestAt)
     if (gapWait > 0) await sleep(gapWait)
 
