@@ -22,7 +22,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout BASE review criteria (per-run dir, fence-allowlisted prefix)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: pr-review-base
