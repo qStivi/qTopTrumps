@@ -2,13 +2,33 @@ import { ATTRIBUTE_KEYS } from './attributes.ts'
 import type { Character } from '../anilist/types.ts'
 import type { CardData, TrumpMaxSettings } from './types.ts'
 
+export function emptyCard(): CardData {
+  return {
+    characterName: '',
+    animeTitles: [],
+    image: null,
+    description: null,
+    attributes: ATTRIBUTE_KEYS.map((key) => ({ key, value: null, trump: false })),
+  }
+}
+
 export function cardFromCharacter(character: Character): CardData {
   return {
+    ...emptyCard(),
     characterName: character.name,
     animeTitles: character.animeTitles,
     image: character.image,
     description: character.description,
-    attributes: ATTRIBUTE_KEYS.map((key) => ({ key, value: null, trump: false })),
+  }
+}
+
+export function cardWithCharacter(card: CardData, character: Character): CardData {
+  return {
+    ...card,
+    characterName: character.name,
+    animeTitles: character.animeTitles,
+    image: character.image,
+    description: character.description,
   }
 }
 
