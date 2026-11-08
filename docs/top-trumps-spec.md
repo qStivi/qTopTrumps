@@ -78,10 +78,9 @@ naturally.
   a small payload — a few key-value entries, not necessarily full JSON. Fields: character
   name, anime name, each attribute value + trump flags. The image pixels themselves carry
   no special payload requirement.
-- Embedding mechanism: image metadata chosen so a few lines of key-value data round-trip
-  reliably. **PNG (`tEXt`/`zTXt` chunks) is the guaranteed format.** JPEG (comment/EXIF
-  segment) and WebP (EXIF chunk) are additionally supported at download time if the
-  implementation cost stays low; PNG is the reference format for re-upload.
+- Embedding mechanism: PNG `tEXt`/`zTXt` chunks — the only export format. JPEG and
+  WebP are **not** offered: they don't reliably preserve the text chunks through
+  re-encoding, which would break the round-trip on re-upload (REVIEW.md failure mode #2).
 - **Re-upload flow:** uploading a previously exported card image restores the full card
   state into the editor for modification.
 
@@ -130,7 +129,8 @@ naturally.
    list filters in V1.
 3. **Trump marker:** plain `*` appended to the trumped value text; no icon/animation.
 4. **Theme:** Catppuccin Mocha.
-5. **Export formats:** PNG guaranteed (tEXt/zTXt); JPEG and WebP additionally if cheap.
+5. **Export format:** PNG only (`tEXt`/`zTXt` chunks). JPEG/WebP were considered and
+   rejected — they strip the embedded card data on re-upload.
 6. **Defaults:** over-crop overflow background defaults to a Catppuccin Mocha base color;
    default trump-max is 10 per attribute, editable in settings (persisted in
    `localStorage`).
