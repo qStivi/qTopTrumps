@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
 import { AttributeIcon } from './AttributeIcon.tsx'
+import { CropTool } from './CropTool.tsx'
 import { displayedValue, isTrumped } from '../card/cardData.ts'
 import { loadTrumpMaxSettings, saveTrumpMaxSettings } from '../card/settings.ts'
 import type { CardData, TrumpMaxSettings } from '../card/types.ts'
@@ -12,6 +13,7 @@ interface CardEditorProps {
 
 export function CardEditor({ card, onChange }: CardEditorProps) {
   const [trumpMax, setTrumpMax] = useState<TrumpMaxSettings>(() => loadTrumpMaxSettings())
+  const [pendingImage, setPendingImage] = useState<string | null>(null)
 
   const effective = useMemo(
     () => ({
@@ -61,6 +63,35 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       </div>
 
       <div className="editor-controls">
+        <div className="image-controls">
+          <label className="ghost-button upload-button">
+            Upload image
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => setPendingImage(String(reader.result))
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
+          </label>
+        </div>
+        {pendingImage && (
+          <CropTool
+            imageSrc={pendingImage}
+            defaultBackground="#1e1e2e"
+            onDone={(dataUrl) => {
+              onChange({ ...card, image: dataUrl })
+              setPendingImage(null)
+            }}
+            onCancel={() => setPendingImage(null)}
+          />
+        )}
         <label className="name-field">
           Character name
           <input
