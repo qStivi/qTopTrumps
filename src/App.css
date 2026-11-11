@@ -12,7 +12,27 @@
   }
 }
 
+.picker {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.picker-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .picker-selected {
+  flex: 0 0 200px;
+  min-width: 0;
+  max-height: 75svh;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -101,7 +121,7 @@
 
 .results {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -110,6 +130,7 @@
   flex-direction: row;
   align-items: flex-start;
   gap: 8px;
+  min-width: 0;
   padding: 8px;
   border-radius: 10px;
   border: 2px solid var(--surface0);
@@ -212,8 +233,9 @@
 }
 
 .picker-panel {
-  flex: 0 0 300px;
-  width: 300px;
+  flex: 0 0 540px;
+  width: 540px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -488,7 +510,7 @@
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1400px) {
   .workspace {
     flex-direction: column;
     align-items: center;
@@ -497,7 +519,17 @@
   .picker-panel {
     flex: none;
     width: 100%;
-    max-width: 560px;
+    max-width: 640px;
+  }
+
+  .picker {
+    flex-direction: column;
+  }
+
+  .picker-selected {
+    flex: none;
+    width: 100%;
+    max-height: 240px;
   }
 
   .editor {

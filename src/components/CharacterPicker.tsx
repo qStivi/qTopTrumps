@@ -44,6 +44,7 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
           )}
         </div>
       )}
+      <div className="picker-main">
       <div className="picker-controls">
         <form
           onSubmit={(e) => {
@@ -103,6 +104,7 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
             )}
           </button>
         ))}
+      </div>
       </div>
     </div>
   )
