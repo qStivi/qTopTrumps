@@ -78,7 +78,7 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
       ctx.stroke()
     }
     const iconImg = await loadIcon(a.key)
-    ctx.drawImage(iconImg, cx - 26, cy - 50, 52, 52)
+    ctx.drawImage(iconImg, cx - 20, cy - 44, 40, 40)
 
     ctx.fillStyle = a.trump ? COLORS.mauve : COLORS.text
     ctx.font = '700 26px system-ui, sans-serif'
