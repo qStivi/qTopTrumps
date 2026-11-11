@@ -168,6 +168,20 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
             onChange={(e) => onChange({ ...card, characterName: e.target.value })}
           />
         </label>
+        <label className="name-field">
+          Anime (comma-separated)
+          <input
+            type="text"
+            value={card.animeTitles.join(', ')}
+            placeholder="—"
+            onChange={(e) =>
+              onChange({
+                ...card,
+                animeTitles: e.target.value.split(',').map((s) => s.trim()).filter((s) => s.length > 0),
+              })
+            }
+          />
+        </label>
         <h3>Attributes</h3>
         {card.attributes.map((a) => (
           <div className="attr-row" key={a.key}>

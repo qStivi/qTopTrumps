@@ -8,37 +8,23 @@ import './App.css'
 
 function App() {
   const [card, setCard] = useState<CardData>(() => emptyCard())
-  const [pickerOpen, setPickerOpen] = useState(false)
 
   function selectCharacter(character: Character) {
     setCard((current) => cardWithCharacter(current, character))
-    setPickerOpen(false)
   }
 
   return (
     <main className="app">
       <header className="app-header">
         <h1>qTopTrumps</h1>
-        <button type="button" className="ghost-button" onClick={() => setPickerOpen(true)}>
-          Load character from AniList
-        </button>
       </header>
-
-      <CardEditor card={card} onChange={setCard} />
-
-      {pickerOpen && (
-        <div className="overlay" onClick={() => setPickerOpen(false)}>
-          <div className="overlay-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="overlay-header">
-              <h2>Pick a character</h2>
-              <button type="button" className="ghost-button" onClick={() => setPickerOpen(false)}>
-                Close
-              </button>
-            </div>
-            <CharacterPicker onSelect={selectCharacter} selected={null} />
-          </div>
-        </div>
-      )}
+      <div className="workspace">
+        <aside className="picker-panel">
+          <h2>Pick a character</h2>
+          <CharacterPicker onSelect={selectCharacter} selected={null} />
+        </aside>
+        <CardEditor card={card} onChange={setCard} />
+      </div>
     </main>
   )
 }
