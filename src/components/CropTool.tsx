@@ -34,6 +34,7 @@ export function CropTool({ imageSrc, defaultBackground, onDone, onCancel }: Crop
   const [containerWidth, setContainerWidth] = useState(0)
   const [crop, setCrop] = useState<CropRect | null>(null)
   const [background, setBackground] = useState(defaultBackground)
+  const [loadError, setLoadError] = useState(false)
   const dragRef = useRef<null | { mode: 'move' | 'resize'; startX: number; startY: number; orig: CropRect }>(null)
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export function CropTool({ imageSrc, defaultBackground, onDone, onCancel }: Crop
       setImgSize({ w: img.naturalWidth, h: img.naturalHeight })
       setCrop(cropToFill(img.naturalWidth, img.naturalHeight))
     }
+    img.onerror = () => setLoadError(true)
     img.src = imageSrc
   }, [imageSrc])
 
@@ -53,8 +55,9 @@ export function CropTool({ imageSrc, defaultBackground, onDone, onCancel }: Crop
     observer.observe(el)
     setContainerWidth(el.clientWidth)
     return () => observer.disconnect()
-  }, [])
+  }, [imgSize])
 
+  if (loadError) return <p className="status error">Could not load that image.</p>
   if (!imgSize || !crop) return <p className="status">Loading image…</p>
 
   const imgW = imgSize.w
@@ -127,6 +130,7 @@ export function CropTool({ imageSrc, defaultBackground, onDone, onCancel }: Crop
       }
       onDone(canvas.toDataURL('image/png'))
     }
+    img.onerror = () => setLoadError(true)
     img.src = imageSrc
   }
 
