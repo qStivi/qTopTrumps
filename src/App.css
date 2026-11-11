@@ -658,3 +658,8 @@
     cursor: pointer;
   }
 }
+
+.hint {
+  color: var(--overlay0);
+  font-size: 12px;
+}
