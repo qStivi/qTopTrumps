@@ -89,27 +89,41 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
     updateEnums(key, options)
   }
 
-  async function onFileChosen(file: File) {
-    const restored = await extractPayload(file)
-    if (restored) {
-      const reader = new FileReader()
-      reader.onload = async () => {
-        const image = await cropToCardImageArea(String(reader.result))
-        onChange({
-          ...card,
-          characterName: restored.characterName ?? card.characterName,
-          animeTitles: restored.animeTitles ?? card.animeTitles,
-          attributes: restored.attributes ?? card.attributes,
-          image,
-        })
+  const onFileChosen = useCallback(
+    async (file: File) => {
+      const restored = await extractPayload(file)
+      if (restored) {
+        const reader = new FileReader()
+        reader.onload = async () => {
+          const image = await cropToCardImageArea(String(reader.result))
+          onChange({
+            ...card,
+            characterName: restored.characterName ?? card.characterName,
+            animeTitles: restored.animeTitles ?? card.animeTitles,
+            attributes: restored.attributes ?? card.attributes,
+            image,
+          })
+        }
+        reader.readAsDataURL(file)
+        return
       }
+      const reader = new FileReader()
+      reader.onload = () => setPendingImage(String(reader.result))
       reader.readAsDataURL(file)
-      return
+    },
+    [card, onChange],
+  )
+
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (!file) return
+      e.preventDefault()
+      void onFileChosen(file)
     }
-    const reader = new FileReader()
-    reader.onload = () => setPendingImage(String(reader.result))
-    reader.readAsDataURL(file)
-  }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [onFileChosen])
 
   async function downloadCard() {
     const png = await renderCardPng(card, trumpMax, enums)
@@ -176,6 +190,7 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
           <button type="button" className="ghost-button" onClick={() => void downloadCard()}>
             Download PNG
           </button>
+          <span className="hint">or paste an image (Ctrl+V)</span>
         </div>
         {pendingImage && (
           <CropTool
