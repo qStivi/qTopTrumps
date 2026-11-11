@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { renderMarkdown } from './markdown.tsx'
 import type { Character } from '../anilist/types.ts'
 import { fetchUserCharacters, searchCharacters } from '../anilist/queries.ts'
 
@@ -76,19 +77,21 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
             className={`result${selected?.id === c.id ? ' selected' : ''}`}
             onClick={() => onSelect(c)}
           >
+            <span className="result-text">
+              <span className="result-name">{c.name}</span>
+              {c.animeTitles.length > 0 && (
+                <span className="result-anime">{c.animeTitles.slice(0, 2).join(', ')}</span>
+              )}
+              {c.description && (
+                <span className="result-description">
+                  {renderMarkdown(c.description.replace(/~([^~]*)~/g, '$1').trim())}
+                </span>
+              )}
+            </span>
             {c.image ? (
               <img src={c.image} alt={c.name} loading="lazy" />
             ) : (
               <span className="no-image" aria-hidden="true">?</span>
-            )}
-            <span className="result-name">{c.name}</span>
-            {c.animeTitles.length > 0 && (
-              <span className="result-anime">{c.animeTitles.slice(0, 2).join(', ')}</span>
-            )}
-            {c.description && (
-              <span className="result-description">
-                {c.description.replace(/~([^~]*)~/g, '$1').trim()}
-              </span>
             )}
           </button>
         ))}
