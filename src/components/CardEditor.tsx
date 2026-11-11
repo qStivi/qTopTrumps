@@ -62,10 +62,10 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       ...card,
       attributes: card.attributes.map((a) => ({
         ...a,
-        trump: isTrumped(a.value, a.trump, trumpMax[a.key]),
+        trump: isTrumped(a.value, a.trump, trumpMax[a.key], enums[a.key]),
       })),
     }),
-    [card, trumpMax],
+    [card, trumpMax, enums],
   )
 
   function updateTrumpMax(key: string, max: number) {
@@ -112,7 +112,7 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
   }
 
   async function downloadCard() {
-    const png = await renderCardPng(card, trumpMax)
+    const png = await renderCardPng(card, trumpMax, enums)
     const withData = await embedPayload(png, card)
     const url = URL.createObjectURL(withData)
     const a = document.createElement('a')

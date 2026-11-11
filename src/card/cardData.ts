@@ -36,9 +36,11 @@ export function isTrumped(
   value: number | string | null,
   trump: boolean,
   trumpMax: number,
+  enumOptions: string[] = [],
 ): boolean {
   if (trump) return true
-  return typeof value === 'number' && value >= trumpMax
+  if (typeof value === 'number') return value >= trumpMax
+  return enumOptions.length > 0 && value === enumOptions[enumOptions.length - 1]
 }
 
 export function displayedValue(value: number | string | null, trumped: boolean): string {
