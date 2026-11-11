@@ -288,7 +288,8 @@
 .attr-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   padding: 6px 10px;
   border-radius: 8px;
   background: var(--mantle);
@@ -300,11 +301,12 @@
     gap: 6px;
     color: var(--subtext);
     font-size: 14px;
-    flex: 1;
+    flex: 1 1 120px;
+    min-width: 0;
   }
 
   input[type='number'] {
-    width: 64px;
+    width: 56px;
     padding: 4px 8px;
     border-radius: 6px;
     border: 1px solid var(--border);
