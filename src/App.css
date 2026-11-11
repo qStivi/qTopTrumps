@@ -22,6 +22,18 @@
   background: var(--mantle);
   text-align: left;
 
+  .result-name,
+  .result-anime {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .result-anime {
+    color: var(--subtext);
+    font-size: 12px;
+  }
+
   .picker-selected-description {
     color: var(--subtext);
     font-size: 12px;
