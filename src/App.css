@@ -168,8 +168,10 @@
   width: 280px;
   aspect-ratio: 63 / 88;
   border-radius: 12px;
-  border: 2px solid var(--mauve);
-  background: var(--mantle);
+  border: 3px solid transparent;
+  background:
+    linear-gradient(var(--mantle), var(--mantle)) padding-box,
+    linear-gradient(135deg, var(--mauve), var(--blue), var(--red)) border-box;
   overflow: hidden;
   display: flex;
   flex-direction: column;
