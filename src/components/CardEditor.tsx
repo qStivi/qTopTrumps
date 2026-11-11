@@ -168,6 +168,20 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
             onChange={(e) => onChange({ ...card, characterName: e.target.value })}
           />
         </label>
+        <label className="name-field">
+          Anime (one per line)
+          <textarea
+            rows={2}
+            value={card.animeTitles.join('\n')}
+            placeholder="—"
+            onChange={(e) =>
+              onChange({
+                ...card,
+                animeTitles: e.target.value.split('\n').map((s) => s.trim()).filter((s) => s.length > 0),
+              })
+            }
+          />
+        </label>
         <h3>Attributes</h3>
         {card.attributes.map((a) => (
           <div className="attr-row" key={a.key}>
