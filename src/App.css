@@ -321,6 +321,100 @@
     color: var(--subtext);
     font-size: 13px;
   }
+
+  select {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--base);
+    color: var(--text);
+    font: inherit;
+    max-width: 100%;
+  }
+}
+
+.attr-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.enum-toggle {
+  padding: 4px 10px;
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+
+.enum-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--base);
+  border: 1px solid var(--border);
+}
+
+.enum-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .enum-option-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  button {
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--mantle);
+    color: var(--text);
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+}
+
+.enum-add {
+  display: flex;
+  gap: 6px;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--mantle);
+    color: var(--text);
+    font: inherit;
+  }
+
+  button {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--mauve);
+    background: var(--mauve);
+    color: var(--crust);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
 }
 
 .app-header {

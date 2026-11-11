@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
+import type { AttributeKey } from '../card/attributes.ts'
 import { AttributeIcon } from './AttributeIcon.tsx'
 import { CropTool } from './CropTool.tsx'
 import { extractPayload, embedPayload } from '../card/pngMetadata.ts'
 import { cropToCardImageArea } from '../card/cardImage.ts'
 import { renderCardPng } from '../card/renderCard.ts'
 import { displayedValue, isTrumped } from '../card/cardData.ts'
-import { loadTrumpMaxSettings, saveTrumpMaxSettings } from '../card/settings.ts'
-import type { CardData, TrumpMaxSettings } from '../card/types.ts'
+import { loadEnumSettings, loadTrumpMaxSettings, saveEnumSettings, saveTrumpMaxSettings } from '../card/settings.ts'
+import type { CardData, EnumSettings, TrumpMaxSettings } from '../card/types.ts'
 
 interface CardEditorProps {
   card: CardData
@@ -16,11 +17,14 @@ interface CardEditorProps {
 
 export function CardEditor({ card, onChange }: CardEditorProps) {
   const [trumpMax, setTrumpMax] = useState<TrumpMaxSettings>(() => loadTrumpMaxSettings())
+  const [enums, setEnums] = useState<EnumSettings>(() => loadEnumSettings())
+  const [enumEditorOpen, setEnumEditorOpen] = useState<AttributeKey | null>(null)
+  const [newEnum, setNewEnum] = useState('')
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const iconsRef = useRef<HTMLDivElement>(null)
 
   const updateAttribute = useCallback(
-    (key: string, patch: Partial<{ value: number | null; trump: boolean }>) => {
+    (key: string, patch: Partial<{ value: number | string | null; trump: boolean }>) => {
       onChange({
         ...card,
         attributes: card.attributes.map((a) => (a.key === key ? { ...a, ...patch } : a)),
@@ -39,13 +43,19 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       const attr = card.attributes.find((a) => a.key === key)
       if (!attr) return
       const dir = e.deltaY < 0 ? 1 : -1
-      if (attr.value === null && dir < 0) return
       e.preventDefault()
-      updateAttribute(key, { value: Math.max(0, (attr.value ?? 0) + dir) })
+      const options = enums[key as AttributeKey] ?? []
+      if (options.length > 0) {
+        const idx = typeof attr.value === 'string' ? options.indexOf(attr.value) : -1
+        updateAttribute(key, { value: options[(idx + dir + options.length) % options.length] })
+        return
+      }
+      if (attr.value === null && dir < 0) return
+      updateAttribute(key, { value: Math.max(0, (typeof attr.value === 'number' ? attr.value : 0) + dir) })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [card, updateAttribute])
+  }, [card, updateAttribute, enums])
 
   const effective = useMemo(
     () => ({
@@ -62,6 +72,21 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
     const next = { ...trumpMax, [key]: max }
     setTrumpMax(next)
     saveTrumpMaxSettings(next)
+  }
+
+  function updateEnums(key: AttributeKey, options: string[]) {
+    const next = { ...enums, [key]: options }
+    setEnums(next)
+    saveEnumSettings(next)
+  }
+
+  function moveEnum(key: AttributeKey, index: number, delta: number) {
+    const options = [...enums[key]]
+    const target = index + delta
+    if (target < 0 || target >= options.length) return
+    const [item] = options.splice(index, 1)
+    options.splice(target, 0, item)
+    updateEnums(key, options)
   }
 
   async function onFileChosen(file: File) {
@@ -183,40 +208,118 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
           />
         </label>
         <h3>Attributes</h3>
-        {card.attributes.map((a) => (
-          <div className="attr-row" key={a.key}>
-            <label>
-              {ATTRIBUTE_LABELS[a.key]}
-              <input
-                type="number"
-                min={0}
-                value={a.value ?? ''}
-                placeholder="—"
-                onChange={(e) => {
-                  const v = e.target.value
-                  updateAttribute(a.key, { value: v === '' ? null : Number(v) })
-                }}
-              />
-            </label>
-            <label className="trump-toggle">
-              <input
-                type="checkbox"
-                checked={a.trump}
-                onChange={(e) => updateAttribute(a.key, { trump: e.target.checked })}
-              />
-              trump
-            </label>
-            <label className="trump-max">
-              max
-              <input
-                type="number"
-                min={0}
-                value={trumpMax[a.key]}
-                onChange={(e) => updateTrumpMax(a.key, Number(e.target.value))}
-              />
-            </label>
-          </div>
-        ))}
+        {card.attributes.map((a) => {
+          const options = enums[a.key]
+          const hasEnums = options.length > 0
+          const selectValue = typeof a.value === 'string' ? a.value : ''
+          const selectOptions =
+            hasEnums && selectValue !== '' && !options.includes(selectValue)
+              ? [...options, selectValue]
+              : options
+          return (
+            <div className="attr-block" key={a.key}>
+              <div className="attr-row">
+                <label>
+                  {ATTRIBUTE_LABELS[a.key]}
+                  {hasEnums ? (
+                    <select
+                      value={selectValue}
+                      onChange={(e) =>
+                        updateAttribute(a.key, { value: e.target.value === '' ? null : e.target.value })
+                      }
+                    >
+                      <option value="">—</option>
+                      {selectOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="number"
+                      min={0}
+                      value={typeof a.value === 'number' ? a.value : ''}
+                      placeholder="—"
+                      onChange={(e) => {
+                        const v = e.target.value
+                        updateAttribute(a.key, { value: v === '' ? null : Number(v) })
+                      }}
+                    />
+                  )}
+                </label>
+                <button
+                  type="button"
+                  className="ghost-button enum-toggle"
+                  onClick={() => setEnumEditorOpen(enumEditorOpen === a.key ? null : a.key)}
+                >
+                  enum{hasEnums ? ` (${options.length})` : ''}
+                </button>
+                <label className="trump-toggle">
+                  <input
+                    type="checkbox"
+                    checked={a.trump}
+                    onChange={(e) => updateAttribute(a.key, { trump: e.target.checked })}
+                  />
+                  trump
+                </label>
+                <label className="trump-max">
+                  max
+                  <input
+                    type="number"
+                    min={0}
+                    value={trumpMax[a.key]}
+                    onChange={(e) => updateTrumpMax(a.key, Number(e.target.value))}
+                  />
+                </label>
+              </div>
+              {enumEditorOpen === a.key && (
+                <div className="enum-editor">
+                  {options.map((opt, i) => (
+                    <div className="enum-option" key={opt}>
+                      <span className="enum-option-label">{opt}</span>
+                      <button type="button" disabled={i === 0} onClick={() => moveEnum(a.key, i, -1)}>
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={i === options.length - 1}
+                        onClick={() => moveEnum(a.key, i, 1)}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateEnums(a.key, options.filter((_, j) => j !== i))}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <form
+                    className="enum-add"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      const v = newEnum.trim()
+                      if (v && !options.includes(v)) updateEnums(a.key, [...options, v])
+                      setNewEnum('')
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={newEnum}
+                      placeholder="New option"
+                      onChange={(e) => setNewEnum(e.target.value)}
+                    />
+                    <button type="submit" disabled={!newEnum.trim()}>
+                      Add
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

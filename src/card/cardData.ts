@@ -33,15 +33,15 @@ export function cardWithCharacter(card: CardData, character: Character): CardDat
 }
 
 export function isTrumped(
-  value: number | null,
+  value: number | string | null,
   trump: boolean,
   trumpMax: number,
 ): boolean {
   if (trump) return true
-  return value !== null && value >= trumpMax
+  return typeof value === 'number' && value >= trumpMax
 }
 
-export function displayedValue(value: number | null, trumped: boolean): string {
+export function displayedValue(value: number | string | null, trumped: boolean): string {
   if (value === null) return '—'
   return trumped ? `${value}*` : `${value}`
 }
