@@ -169,15 +169,15 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
           />
         </label>
         <label className="name-field">
-          Anime (comma-separated)
-          <input
-            type="text"
-            value={card.animeTitles.join(', ')}
+          Anime (one per line)
+          <textarea
+            rows={2}
+            value={card.animeTitles.join('\n')}
             placeholder="—"
             onChange={(e) =>
               onChange({
                 ...card,
-                animeTitles: e.target.value.split(',').map((s) => s.trim()).filter((s) => s.length > 0),
+                animeTitles: e.target.value.split('\n').map((s) => s.trim()).filter((s) => s.length > 0),
               })
             }
           />
