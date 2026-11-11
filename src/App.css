@@ -12,6 +12,28 @@
   }
 }
 
+.picker-selected {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--mauve);
+  background: var(--mantle);
+  text-align: left;
+
+  .picker-selected-description {
+    color: var(--subtext);
+    font-size: 12px;
+    max-height: 180px;
+    overflow: auto;
+
+    a {
+      color: var(--blue);
+    }
+  }
+}
+
 .picker-controls {
   display: flex;
   flex-direction: column;
@@ -128,19 +150,7 @@
     white-space: nowrap;
   }
 
-  .result-description {
-    color: var(--subtext);
-    font-size: 11px;
-    text-align: left;
-    display: -webkit-box;
-    -webkit-line-clamp: 8;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 
-    a {
-      color: var(--blue);
-    }
-  }
 
   .result-anime {
     color: var(--subtext);
