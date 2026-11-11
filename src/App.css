@@ -213,6 +213,8 @@
   gap: 2px;
   padding: 4px 0;
   border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
 
   &.trump {
     background: var(--surface0);
