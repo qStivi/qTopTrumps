@@ -1,6 +1,6 @@
 import { ATTRIBUTE_KEYS } from './attributes.ts'
 import type { Character } from '../anilist/types.ts'
-import type { CardData, TrumpMaxSettings } from './types.ts'
+import type { CardAttribute, CardData, TrumpMaxSettings } from './types.ts'
 
 export function emptyCard(): CardData {
   return {
@@ -8,7 +8,7 @@ export function emptyCard(): CardData {
     animeTitles: [],
     image: null,
     description: null,
-    attributes: ATTRIBUTE_KEYS.map((key) => ({ key, value: null, trump: false })),
+    attributes: ATTRIBUTE_KEYS.map((key) => ({ key, value: null, trump: false, trumpDisabled: false })),
   }
 }
 
@@ -33,14 +33,14 @@ export function cardWithCharacter(card: CardData, character: Character): CardDat
 }
 
 export function isTrumped(
-  value: number | string | null,
-  trump: boolean,
+  attr: Pick<CardAttribute, 'value' | 'trump' | 'trumpDisabled'>,
   trumpMax: number,
   enumOptions: string[] = [],
 ): boolean {
-  if (trump) return true
-  if (typeof value === 'number') return value >= trumpMax
-  return enumOptions.length > 0 && value === enumOptions[enumOptions.length - 1]
+  if (attr.trumpDisabled) return false
+  if (attr.trump) return true
+  if (typeof attr.value === 'number') return attr.value >= trumpMax
+  return enumOptions.length > 0 && attr.value === enumOptions[enumOptions.length - 1]
 }
 
 export function displayedValue(value: number | string | null, trumped: boolean): string {
@@ -53,7 +53,7 @@ export function withTrumpMaxes(card: CardData, settings: TrumpMaxSettings): Card
     ...card,
     attributes: card.attributes.map((a) => ({
       ...a,
-      trump: isTrumped(a.value, a.trump, settings[a.key]),
+      trump: isTrumped(a, settings[a.key]),
     })),
   }
 }

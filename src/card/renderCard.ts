@@ -71,7 +71,7 @@ export async function renderCardPng(
   const cellW = CARD_W / 6
   const attrs = card.attributes.map((a) => ({
     ...a,
-    trump: isTrumped(a.value, a.trump, trumpMax[a.key], enums[a.key]),
+    trump: isTrumped(a, trumpMax[a.key], enums[a.key]),
   }))
   for (let i = 0; i < attrs.length; i++) {
     const a = attrs[i]

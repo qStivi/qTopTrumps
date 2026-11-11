@@ -28,11 +28,28 @@ function crc32(bytes: Uint8Array): number {
 const ANIME_DELIMITER = '\x1f'
 
 function escapeValue(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\*/g, '\\*')
+    .replace(/!/g, '\\!')
 }
 
 function unescapeValue(value: string): string {
-  return value.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\\\/g, '\\')
+  return value
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\\*/g, '*')
+    .replace(/\\!/g, '!')
+    .replace(/\\\\/g, '\\')
+}
+
+function stripTrailingFlag(value: string, flag: string): { raw: string; had: boolean } {
+  if (value.endsWith(flag) && !value.endsWith('\\' + flag)) {
+    return { raw: value.slice(0, -1), had: true }
+  }
+  return { raw: value, had: false }
 }
 
 function encodePayload(card: CardData): string {
@@ -42,7 +59,7 @@ function encodePayload(card: CardData): string {
     ...card.attributes.map((a) => {
       const raw =
         a.value === null ? '' : typeof a.value === 'string' ? `s:${escapeValue(a.value)}` : String(a.value)
-      return `attr.${a.key}=${raw}${a.trump ? '*' : ''}`
+      return `attr.${a.key}=${raw}${a.trump ? '*' : ''}${a.trumpDisabled ? '!' : ''}`
     }),
   ]
   return lines.join('\n')
@@ -50,20 +67,30 @@ function encodePayload(card: CardData): string {
 
 function decodePayload(text: string): Partial<CardData> {
   const out: Partial<CardData> = { attributes: undefined }
-  const attrs: CardData['attributes'] = ATTRIBUTE_KEYS.map((key) => ({ key, value: null, trump: false }))
+  const attrs: CardData['attributes'] = ATTRIBUTE_KEYS.map((key) => ({
+    key,
+    value: null,
+    trump: false,
+    trumpDisabled: false,
+  }))
   for (const line of text.split('\n')) {
     const eq = line.indexOf('=')
     if (eq <= 0) continue
     const key = line.slice(0, eq)
-    const value = line.slice(eq + 1)
+    let value = line.slice(eq + 1)
     if (key === 'name') out.characterName = unescapeValue(value)
     else if (key === 'anime') out.animeTitles = value ? value.split(ANIME_DELIMITER).map(unescapeValue) : []
     else if (key.startsWith('attr.')) {
       const attrKey = key.slice(5) as AttributeKey
       const attr = attrs.find((a) => a.key === attrKey)
       if (!attr) continue
-      const trump = value.endsWith('*')
-      const raw = trump ? value.slice(0, -1) : value
+      const disabledFlag = stripTrailingFlag(value, '!')
+      const trumpFlag = stripTrailingFlag(disabledFlag.raw, '*')
+      value = trumpFlag.raw
+      const trumpDisabled = disabledFlag.had
+      const trump = trumpFlag.had
+      const raw = value
+      attr.trumpDisabled = trumpDisabled
       if (raw === '') {
         attr.value = null
         attr.trump = trump

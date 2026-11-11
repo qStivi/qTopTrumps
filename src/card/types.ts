@@ -4,6 +4,7 @@ export interface CardAttribute {
   key: AttributeKey
   value: number | string | null
   trump: boolean
+  trumpDisabled: boolean
 }
 
 export interface CardData {

@@ -24,7 +24,7 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
   const iconsRef = useRef<HTMLDivElement>(null)
 
   const updateAttribute = useCallback(
-    (key: string, patch: Partial<{ value: number | string | null; trump: boolean }>) => {
+    (key: string, patch: Partial<{ value: number | string | null; trump: boolean; trumpDisabled: boolean }>) => {
       onChange({
         ...card,
         attributes: card.attributes.map((a) => (a.key === key ? { ...a, ...patch } : a)),
@@ -62,7 +62,7 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       ...card,
       attributes: card.attributes.map((a) => ({
         ...a,
-        trump: isTrumped(a.value, a.trump, trumpMax[a.key], enums[a.key]),
+        trump: isTrumped(a, trumpMax[a.key], enums[a.key]),
       })),
     }),
     [card, trumpMax, enums],
@@ -137,10 +137,14 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
               key={a.key}
               className={`card-icon-cell${a.trump ? ' trump' : ''}`}
               data-attr={a.key}
-              onClick={() => {
-                const raw = card.attributes.find((c) => c.key === a.key)
-                updateAttribute(a.key, { trump: !(raw?.trump ?? false) })
-              }}
+              onClick={() =>
+                updateAttribute(
+                  a.key,
+                  a.trump
+                    ? { trump: false, trumpDisabled: true }
+                    : { trump: true, trumpDisabled: false },
+                )
+              }
             >
               <AttributeIcon attribute={a.key} />
               <span className="card-icon-value">{displayedValue(a.value, a.trump)}</span>

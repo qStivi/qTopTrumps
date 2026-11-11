@@ -14,7 +14,7 @@ const SEARCH_CHARACTERS = `
       pageInfo { currentPage hasNextPage lastPage total }
       characters(search: $search, sort: SEARCH_MATCH) {
         ${CHARACTER_FIELDS}
-        media { nodes { title { romaji } } }
+        media { nodes { title { userPreferred } } }
       }
     }
   }
@@ -28,7 +28,7 @@ const USER_ANIME_LIST = `
         entries {
           score(format: POINT_100)
           media {
-            title { romaji }
+            title { userPreferred }
             characters(page: 1, perPage: 25) {
               nodes {
                 ${CHARACTER_FIELDS}
@@ -46,19 +46,19 @@ interface RawCharacter {
   name: { full: string | null; native: string | null }
   image: { large: string | null } | null
   description: string | null
-  media?: { nodes: { title: { romaji: string | null } }[] } | null
+  media?: { nodes: { title: { userPreferred: string | null } }[] } | null
 }
 
 function toCharacter(raw: RawCharacter, animeTitles: string[] = []): Character {
-  const titles = raw.media?.nodes
-    ?.map((m) => m.title.romaji)
-    .filter((t): t is string => Boolean(t)) ?? []
+  const firstTitle = raw.media?.nodes
+    ?.map((m) => m.title.userPreferred)
+    .find((t): t is string => Boolean(t))
   return {
     id: raw.id,
     name: raw.name.full ?? raw.name.native ?? `Character #${raw.id}`,
     image: raw.image?.large ?? null,
     description: raw.description ?? null,
-    animeTitles: [...new Set([...titles, ...animeTitles])],
+    animeTitles: firstTitle ? [firstTitle] : animeTitles,
   }
 }
 
@@ -103,7 +103,7 @@ export async function fetchUserCharacters(
           entries: ({
             score: number | null
             media: {
-              title: { romaji: string | null }
+              title: { userPreferred: string | null }
               characters: { nodes: RawCharacter[] }
             } | null
           } | null)[]
@@ -117,7 +117,7 @@ export async function fetchUserCharacters(
     for (const list of collection.lists) {
       for (const entry of list.entries ?? []) {
         if (!entry?.media) continue
-        const animeTitle = entry.media.title.romaji ?? ''
+        const animeTitle = entry.media.title.userPreferred ?? ''
         for (const raw of entry.media.characters.nodes) {
           const incoming = toCharacter(raw, animeTitle ? [animeTitle] : [])
           const existing = byId.get(raw.id)
@@ -130,7 +130,7 @@ export async function fetchUserCharacters(
             name: existing.name ?? incoming.name,
             image: existing.image ?? incoming.image,
             description: existing.description ?? incoming.description,
-            animeTitles: [...new Set([...existing.animeTitles, ...incoming.animeTitles])],
+            animeTitles: existing.animeTitles.length > 0 ? existing.animeTitles : incoming.animeTitles,
           })
         }
       }
