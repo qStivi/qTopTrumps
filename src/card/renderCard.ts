@@ -8,6 +8,8 @@ export const CARD_W = 630
 export const CARD_H = 880
 export const CARD_IMAGE_RATIO = 63 / 61 // w/h of the image area in an exported card
 export const CARD_BORDER_W = 8 // solid border stroke width around an exported card
+export const CARD_IMG_W = CARD_W - 2 * CARD_BORDER_W
+export const CARD_IMG_H = Math.round(CARD_IMG_W / CARD_IMAGE_RATIO)
 
 const COLORS = {
   base: '#1e1e2e',
@@ -38,8 +40,8 @@ export async function renderCardPng(
   const footerH = 44
   const imgX = CARD_BORDER_W
   const imgY = CARD_BORDER_W
-  const imgW = CARD_W - 2 * CARD_BORDER_W
-  const imageH = Math.round(imgW / CARD_IMAGE_RATIO)
+  const imgW = CARD_IMG_W
+  const imageH = CARD_IMG_H
 
   if (card.image) {
     const img = await loadImage(card.image)
