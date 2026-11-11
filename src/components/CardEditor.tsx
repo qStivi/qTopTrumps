@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
 import { AttributeIcon } from './AttributeIcon.tsx'
 import { CropTool } from './CropTool.tsx'
@@ -16,6 +16,25 @@ interface CardEditorProps {
 export function CardEditor({ card, onChange }: CardEditorProps) {
   const [trumpMax, setTrumpMax] = useState<TrumpMaxSettings>(() => loadTrumpMaxSettings())
   const [pendingImage, setPendingImage] = useState<string | null>(null)
+  const iconsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = iconsRef.current
+    if (!el) return
+    function onWheel(e: WheelEvent) {
+      const cell = (e.target as HTMLElement).closest('.card-icon-cell')
+      const key = cell?.getAttribute('data-attr')
+      if (!key) return
+      const attr = card.attributes.find((a) => a.key === key)
+      if (!attr) return
+      const dir = e.deltaY < 0 ? 1 : -1
+      if (attr.value === null && dir < 0) return
+      e.preventDefault()
+      updateAttribute(key, { value: Math.max(0, (attr.value ?? 0) + dir) })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [card, updateAttribute])
 
   const effective = useMemo(
     () => ({
@@ -28,12 +47,15 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
     [card, trumpMax],
   )
 
-  function updateAttribute(key: string, patch: Partial<{ value: number | null; trump: boolean }>) {
-    onChange({
-      ...card,
-      attributes: card.attributes.map((a) => (a.key === key ? { ...a, ...patch } : a)),
-    })
-  }
+  const updateAttribute = useCallback(
+    (key: string, patch: Partial<{ value: number | null; trump: boolean }>) => {
+      onChange({
+        ...card,
+        attributes: card.attributes.map((a) => (a.key === key ? { ...a, ...patch } : a)),
+      })
+    },
+    [card, onChange],
+  )
 
   function updateTrumpMax(key: string, max: number) {
     const next = { ...trumpMax, [key]: max }
@@ -82,9 +104,17 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
           <div className="card-image placeholder">No image yet</div>
         )}
         <div className="card-name-bar">{effective.characterName || 'New card'}</div>
-        <div className="card-icons">
+        <div className="card-icons" ref={iconsRef}>
           {effective.attributes.map((a) => (
-            <div key={a.key} className={`card-icon-cell${a.trump ? ' trump' : ''}`}>
+            <div
+              key={a.key}
+              className={`card-icon-cell${a.trump ? ' trump' : ''}`}
+              data-attr={a.key}
+              onClick={() => {
+                const raw = card.attributes.find((c) => c.key === a.key)
+                updateAttribute(a.key, { trump: !(raw?.trump ?? false) })
+              }}
+            >
               <AttributeIcon attribute={a.key} />
               <span className="card-icon-value">{displayedValue(a.value, a.trump)}</span>
               <span className="card-icon-label">{ATTRIBUTE_LABELS[a.key]}</span>
