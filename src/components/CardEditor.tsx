@@ -18,6 +18,16 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const iconsRef = useRef<HTMLDivElement>(null)
 
+  const updateAttribute = useCallback(
+    (key: string, patch: Partial<{ value: number | null; trump: boolean }>) => {
+      onChange({
+        ...card,
+        attributes: card.attributes.map((a) => (a.key === key ? { ...a, ...patch } : a)),
+      })
+    },
+    [card, onChange],
+  )
+
   useEffect(() => {
     const el = iconsRef.current
     if (!el) return
@@ -45,16 +55,6 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       })),
     }),
     [card, trumpMax],
-  )
-
-  const updateAttribute = useCallback(
-    (key: string, patch: Partial<{ value: number | null; trump: boolean }>) => {
-      onChange({
-        ...card,
-        attributes: card.attributes.map((a) => (a.key === key ? { ...a, ...patch } : a)),
-      })
-    },
-    [card, onChange],
   )
 
   function updateTrumpMax(key: string, max: number) {
