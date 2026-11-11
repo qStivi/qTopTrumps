@@ -2,7 +2,7 @@ import { ATTRIBUTE_LABELS } from './attributes.ts'
 import type { AttributeKey } from './attributes.ts'
 import { displayedValue, isTrumped } from './cardData.ts'
 import { ICONS } from './icons.ts'
-import type { CardData, TrumpMaxSettings } from './types.ts'
+import type { CardData, EnumSettings, TrumpMaxSettings } from './types.ts'
 
 export const CARD_W = 630
 export const CARD_H = 880
@@ -19,7 +19,11 @@ const COLORS = {
   subtext: '#a6adc8',
 }
 
-export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings): Promise<Blob> {
+export async function renderCardPng(
+  card: CardData,
+  trumpMax: TrumpMaxSettings,
+  enums: EnumSettings,
+): Promise<Blob> {
   const canvas = document.createElement('canvas')
   canvas.width = CARD_W
   canvas.height = CARD_H
@@ -67,7 +71,7 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
   const cellW = CARD_W / 6
   const attrs = card.attributes.map((a) => ({
     ...a,
-    trump: isTrumped(a.value, a.trump, trumpMax[a.key]),
+    trump: isTrumped(a.value, a.trump, trumpMax[a.key], enums[a.key]),
   }))
   for (let i = 0; i < attrs.length; i++) {
     const a = attrs[i]
