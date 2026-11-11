@@ -267,8 +267,7 @@
 
 .card-image {
   width: 100%;
-  flex: 0 0 auto;
-  aspect-ratio: 614 / 595;
+  flex: 1 1 auto;
   min-height: 0;
   object-fit: cover;
   border-radius: 8px;
@@ -276,7 +275,7 @@
 }
 
 .card-name-bar {
-  flex: 0 0 auto;
+  flex: 0 0 calc(100% * 56 / 880);
   background: var(--crust);
   color: var(--text);
   font-weight: 700;
@@ -294,7 +293,7 @@
   gap: 2px;
   padding: 8px 6px;
   background: var(--mantle);
-  flex: 0 0 auto;
+  flex: 0 0 calc(100% * 170 / 880);
 }
 
 .card-icon-cell {
@@ -331,7 +330,7 @@
 }
 
 .card-footer {
-  flex: 0 0 auto;
+  flex: 0 0 calc(100% * 44 / 880);
   background: var(--crust);
   color: var(--subtext);
   font-size: 11px;
