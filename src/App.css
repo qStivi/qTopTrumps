@@ -117,6 +117,17 @@
     white-space: nowrap;
   }
 
+  .result-description {
+    color: var(--subtext);
+    font-size: 11px;
+    text-align: left;
+    white-space: pre-line;
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .result-anime {
     color: var(--subtext);
     font-size: 13px;
