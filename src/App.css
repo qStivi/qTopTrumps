@@ -267,9 +267,11 @@
 
 .card-image {
   width: 100%;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  aspect-ratio: 614 / 595;
   min-height: 0;
   object-fit: cover;
+  border-radius: 8px;
   background: var(--surface0);
 }
 
