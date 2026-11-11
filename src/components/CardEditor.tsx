@@ -22,6 +22,16 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
   const [newEnum, setNewEnum] = useState('')
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const iconsRef = useRef<HTMLDivElement>(null)
+  const [animeInput, setAnimeInput] = useState(() => card.animeTitles.join('\n'))
+  const lastEmittedAnime = useRef(card.animeTitles.join('\n'))
+
+  useEffect(() => {
+    const joined = card.animeTitles.join('\n')
+    if (joined !== lastEmittedAnime.current) {
+      lastEmittedAnime.current = joined
+      setAnimeInput(joined)
+    }
+  }, [card.animeTitles])
 
   const updateAttribute = useCallback(
     (key: string, patch: Partial<{ value: number | string | null; trump: boolean; trumpDisabled: boolean }>) => {
@@ -216,14 +226,18 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
           Anime (one per line)
           <textarea
             rows={2}
-            value={card.animeTitles.join('\n')}
+            value={animeInput}
             placeholder="—"
-            onChange={(e) =>
-              onChange({
-                ...card,
-                animeTitles: e.target.value.split('\n').map((s) => s.trim()).filter((s) => s.length > 0),
-              })
-            }
+            onChange={(e) => {
+              const raw = e.target.value
+              setAnimeInput(raw)
+              const parsed = raw
+                .split('\n')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0)
+              lastEmittedAnime.current = parsed.join('\n')
+              onChange({ ...card, animeTitles: parsed })
+            }}
           />
         </label>
         <h3>Attributes</h3>
