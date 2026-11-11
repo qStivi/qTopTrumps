@@ -67,14 +67,15 @@
 
 .results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .result {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
   padding: 8px;
   border-radius: 10px;
   border: 2px solid var(--surface0);
@@ -93,9 +94,19 @@
     border-color: var(--green);
   }
 
+  .result-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
   img,
   .no-image {
-    width: 100%;
+    flex: 0 0 64px;
+    width: 64px;
     aspect-ratio: 3 / 4;
     object-fit: cover;
     border-radius: 6px;
@@ -121,11 +132,14 @@
     color: var(--subtext);
     font-size: 11px;
     text-align: left;
-    white-space: pre-line;
     display: -webkit-box;
-    -webkit-line-clamp: 6;
+    -webkit-line-clamp: 8;
     -webkit-box-orient: vertical;
     overflow: hidden;
+
+    a {
+      color: var(--blue);
+    }
   }
 
   .result-anime {
