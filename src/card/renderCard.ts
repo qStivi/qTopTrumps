@@ -48,13 +48,14 @@ export async function renderCardPng(
     const h = img.naturalHeight * scale
     ctx.save()
     ctx.beginPath()
-    ctx.rect(imgX, imgY, imgW, imageH)
+    roundRect(ctx, imgX, imgY, imgW, imageH, 14)
     ctx.clip()
     ctx.drawImage(img, imgX + (imgW - w) / 2, imgY + (imageH - h) / 2, w, h)
     ctx.restore()
   } else {
     ctx.fillStyle = COLORS.surface0
-    ctx.fillRect(imgX, imgY, imgW, imageH)
+    roundRect(ctx, imgX, imgY, imgW, imageH, 14)
+    ctx.fill()
   }
 
   ctx.fillStyle = COLORS.mantle
@@ -103,7 +104,7 @@ export async function renderCardPng(
   ctx.font = '20px system-ui, sans-serif'
   ctx.fillText(card.animeTitles.join(', ') || '—', CARD_W / 2, CARD_H - footerH / 2, CARD_W - 32)
 
-  ctx.strokeStyle = COLORS.mauve
+  ctx.strokeStyle = COLORS.crust
   ctx.lineWidth = CARD_BORDER_W
   roundRect(ctx, CARD_BORDER_W / 2, CARD_BORDER_W / 2, CARD_W - CARD_BORDER_W, CARD_H - CARD_BORDER_W, 22)
   ctx.stroke()
