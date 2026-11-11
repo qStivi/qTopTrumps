@@ -85,6 +85,11 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
             {c.animeTitles.length > 0 && (
               <span className="result-anime">{c.animeTitles.slice(0, 2).join(', ')}</span>
             )}
+            {c.description && (
+              <span className="result-description">
+                {c.description.replace(/~([^~]*)~/g, '$1').trim()}
+              </span>
+            )}
           </button>
         ))}
       </div>
