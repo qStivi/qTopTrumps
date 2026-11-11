@@ -42,7 +42,7 @@ function encodePayload(card: CardData): string {
     ...card.attributes.map((a) => {
       const raw =
         a.value === null ? '' : typeof a.value === 'string' ? `s:${escapeValue(a.value)}` : String(a.value)
-      return `attr.${a.key}=${raw}${a.trump ? '*' : ''}`
+      return `attr.${a.key}=${raw}${a.trump ? '*' : ''}${a.trumpDisabled ? '!' : ''}`
     }),
   ]
   return lines.join('\n')
@@ -50,20 +50,31 @@ function encodePayload(card: CardData): string {
 
 function decodePayload(text: string): Partial<CardData> {
   const out: Partial<CardData> = { attributes: undefined }
-  const attrs: CardData['attributes'] = ATTRIBUTE_KEYS.map((key) => ({ key, value: null, trump: false }))
+  const attrs: CardData['attributes'] = ATTRIBUTE_KEYS.map((key) => ({
+    key,
+    value: null,
+    trump: false,
+    trumpDisabled: false,
+  }))
   for (const line of text.split('\n')) {
     const eq = line.indexOf('=')
     if (eq <= 0) continue
     const key = line.slice(0, eq)
-    const value = line.slice(eq + 1)
+    let value = line.slice(eq + 1)
     if (key === 'name') out.characterName = unescapeValue(value)
     else if (key === 'anime') out.animeTitles = value ? value.split(ANIME_DELIMITER).map(unescapeValue) : []
     else if (key.startsWith('attr.')) {
       const attrKey = key.slice(5) as AttributeKey
       const attr = attrs.find((a) => a.key === attrKey)
       if (!attr) continue
+      let trumpDisabled = false
+      if (value.endsWith('!')) {
+        trumpDisabled = true
+        value = value.slice(0, -1)
+      }
       const trump = value.endsWith('*')
       const raw = trump ? value.slice(0, -1) : value
+      attr.trumpDisabled = trumpDisabled
       if (raw === '') {
         attr.value = null
         attr.trump = trump
