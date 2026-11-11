@@ -14,6 +14,8 @@ const COLORS = {
   crust: '#11111b',
   surface0: '#313244',
   mauve: '#cba6f7',
+  blue: '#89b4fa',
+  pink: '#f38ba8',
   text: '#cdd6f4',
   subtext: '#a6adc8',
 }
@@ -78,15 +80,15 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
       ctx.stroke()
     }
     const iconImg = await loadIcon(a.key)
-    ctx.drawImage(iconImg, cx - 20, cy - 44, 40, 40)
+    ctx.drawImage(iconImg, cx - 28, cy - 52, 56, 56)
 
     ctx.fillStyle = a.trump ? COLORS.mauve : COLORS.text
     ctx.font = '700 26px system-ui, sans-serif'
-    ctx.fillText(displayedValue(a.value, a.trump), cx, cy + 8)
+    ctx.fillText(displayedValue(a.value, a.trump), cx, cy + 16)
 
     ctx.fillStyle = COLORS.subtext
     ctx.font = '15px system-ui, sans-serif'
-    ctx.fillText(ATTRIBUTE_LABELS[a.key].toUpperCase(), cx, cy + 38, cellW - 12)
+    ctx.fillText(ATTRIBUTE_LABELS[a.key].toUpperCase(), cx, cy + 44, cellW - 12)
   }
 
   ctx.fillStyle = COLORS.crust
@@ -94,6 +96,19 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
   ctx.fillStyle = COLORS.subtext
   ctx.font = '20px system-ui, sans-serif'
   ctx.fillText(card.animeTitles.join(', ') || '—', CARD_W / 2, CARD_H - footerH / 2, CARD_W - 32)
+
+  const borderGrad = ctx.createLinearGradient(0, 0, CARD_W, CARD_H)
+  borderGrad.addColorStop(0, COLORS.mauve)
+  borderGrad.addColorStop(0.5, COLORS.blue)
+  borderGrad.addColorStop(1, COLORS.pink)
+  ctx.strokeStyle = borderGrad
+  ctx.lineWidth = 10
+  roundRect(ctx, 5, 5, CARD_W - 10, CARD_H - 10, 22)
+  ctx.stroke()
+  ctx.strokeStyle = COLORS.crust
+  ctx.lineWidth = 2
+  roundRect(ctx, 14, 14, CARD_W - 28, CARD_H - 28, 15)
+  ctx.stroke()
 
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encode failed'))), 'image/png'),
