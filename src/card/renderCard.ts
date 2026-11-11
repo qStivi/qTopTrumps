@@ -6,6 +6,7 @@ import type { CardData, TrumpMaxSettings } from './types.ts'
 
 export const CARD_W = 630
 export const CARD_H = 880
+export const CARD_IMAGE_RATIO = 63 / 61 // w/h of the image area in an exported card
 
 const COLORS = {
   base: '#1e1e2e',
@@ -110,7 +111,7 @@ async function loadIcon(key: AttributeKey): Promise<HTMLImageElement> {
   return img
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     if (!src.startsWith('data:')) img.crossOrigin = 'anonymous'

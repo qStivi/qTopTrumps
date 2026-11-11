@@ -3,6 +3,7 @@ import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
 import { AttributeIcon } from './AttributeIcon.tsx'
 import { CropTool } from './CropTool.tsx'
 import { extractPayload, embedPayload } from '../card/pngMetadata.ts'
+import { cropToCardImageArea } from '../card/cardImage.ts'
 import { renderCardPng } from '../card/renderCard.ts'
 import { displayedValue, isTrumped } from '../card/cardData.ts'
 import { loadTrumpMaxSettings, saveTrumpMaxSettings } from '../card/settings.ts'
@@ -67,13 +68,14 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
     const restored = await extractPayload(file)
     if (restored) {
       const reader = new FileReader()
-      reader.onload = () => {
+      reader.onload = async () => {
+        const image = await cropToCardImageArea(String(reader.result))
         onChange({
           ...card,
           characterName: restored.characterName ?? card.characterName,
           animeTitles: restored.animeTitles ?? card.animeTitles,
           attributes: restored.attributes ?? card.attributes,
-          image: String(reader.result),
+          image,
         })
       }
       reader.readAsDataURL(file)
