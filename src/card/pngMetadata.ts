@@ -39,7 +39,9 @@ function encodePayload(card: CardData): string {
   const lines = [
     `name=${escapeValue(card.characterName)}`,
     `anime=${card.animeTitles.map(escapeValue).join(ANIME_DELIMITER)}`,
-    ...card.attributes.map((a) => `attr.${a.key}=${a.value === null ? '' : a.value}${a.trump ? '*' : ''}`),
+    ...card.attributes.map(
+      (a) => `attr.${a.key}=${a.value === null ? '' : escapeValue(String(a.value))}${a.trump ? '*' : ''}`,
+    ),
   ]
   return lines.join('\n')
 }
@@ -66,8 +68,11 @@ function decodePayload(text: string): Partial<CardData> {
         continue
       }
       const num = Number(raw)
-      if (Number.isFinite(num)) {
+      if (Number.isFinite(num) && raw.trim() !== '') {
         attr.value = num
+        attr.trump = trump
+      } else {
+        attr.value = unescapeValue(raw)
         attr.trump = trump
       }
     }
