@@ -257,7 +257,7 @@
   width: 340px;
   aspect-ratio: 63 / 88;
   border-radius: 12px;
-  border: 3px solid var(--crust);
+  border: calc(340px * 8 / 630) solid var(--crust);
   background: var(--mantle);
   overflow: hidden;
   display: flex;
@@ -275,7 +275,7 @@
 }
 
 .card-name-bar {
-  flex: 0 0 calc(100% * 56 / 880);
+  flex: 0 0 calc(100% * 56 / 864);
   background: var(--crust);
   color: var(--text);
   font-weight: 700;
@@ -293,7 +293,7 @@
   gap: 2px;
   padding: 8px 6px;
   background: var(--mantle);
-  flex: 0 0 calc(100% * 170 / 880);
+  flex: 0 0 calc(100% * 170 / 864);
 }
 
 .card-icon-cell {
@@ -330,7 +330,7 @@
 }
 
 .card-footer {
-  flex: 0 0 calc(100% * 44 / 880);
+  flex: 0 0 calc(100% * 44 / 864);
   background: var(--crust);
   color: var(--subtext);
   font-size: 11px;
