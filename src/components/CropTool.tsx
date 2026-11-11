@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { CARD_IMG_H, CARD_IMG_W } from '../card/renderCard.ts'
 
-export const CARD_RATIO = 63 / 88 // width / height, fixed by spec
-export const EXPORT_WIDTH = 630
-export const EXPORT_HEIGHT = 880
+export const CARD_RATIO = CARD_IMG_W / CARD_IMG_H // image-area ratio of the card
+export const EXPORT_WIDTH = CARD_IMG_W
+export const EXPORT_HEIGHT = CARD_IMG_H
 const SNAP_THRESHOLD_PX = 12 // screen pixels
 
 interface CropRect {
