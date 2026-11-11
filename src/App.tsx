@@ -8,9 +8,11 @@ import './App.css'
 
 function App() {
   const [card, setCard] = useState<CardData>(() => emptyCard())
+  const [selected, setSelected] = useState<Character | null>(null)
 
   function selectCharacter(character: Character) {
     setCard((current) => cardWithCharacter(current, character))
+    setSelected(character)
   }
 
   return (
@@ -21,7 +23,7 @@ function App() {
       <div className="workspace">
         <aside className="picker-panel">
           <h2>Pick a character</h2>
-          <CharacterPicker onSelect={selectCharacter} selected={null} />
+          <CharacterPicker onSelect={selectCharacter} selected={selected} />
         </aside>
         <CardEditor card={card} onChange={setCard} />
       </div>

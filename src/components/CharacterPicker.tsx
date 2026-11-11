@@ -31,6 +31,19 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
 
   return (
     <div className="picker">
+      {selected && (
+        <div className="picker-selected">
+          <span className="result-name">{selected.name}</span>
+          {selected.animeTitles.length > 0 && (
+            <span className="result-anime">{selected.animeTitles.join(', ')}</span>
+          )}
+          {selected.description && (
+            <div className="picker-selected-description">
+              {renderMarkdown(selected.description.replace(/~([^~]*)~/g, '$1').trim())}
+            </div>
+          )}
+        </div>
+      )}
       <div className="picker-controls">
         <form
           onSubmit={(e) => {
@@ -81,11 +94,6 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
               <span className="result-name">{c.name}</span>
               {c.animeTitles.length > 0 && (
                 <span className="result-anime">{c.animeTitles.slice(0, 2).join(', ')}</span>
-              )}
-              {c.description && (
-                <span className="result-description">
-                  {renderMarkdown(c.description.replace(/~([^~]*)~/g, '$1').trim())}
-                </span>
               )}
             </span>
             {c.image ? (
