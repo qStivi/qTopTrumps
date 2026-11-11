@@ -1,4 +1,5 @@
 import { ATTRIBUTE_LABELS } from './attributes.ts'
+import type { AttributeKey } from './attributes.ts'
 import { displayedValue, isTrumped } from './cardData.ts'
 import { ICONS } from './icons.ts'
 import type { CardData, TrumpMaxSettings } from './types.ts'
@@ -63,7 +64,8 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
     ...a,
     trump: isTrumped(a.value, a.trump, trumpMax[a.key]),
   }))
-  attrs.forEach((a, i) => {
+  for (let i = 0; i < attrs.length; i++) {
+    const a = attrs[i]
     const cx = i * cellW + cellW / 2
     const cy = imageH + nameBarH + iconsH / 2
     if (a.trump) {
@@ -74,16 +76,8 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
       ctx.fill()
       ctx.stroke()
     }
-    const icon = ICONS[a.key]
-    ctx.save()
-    ctx.translate(cx - 22, cy - 46)
-    ctx.scale(44 / 24, 44 / 24)
-    ctx.strokeStyle = icon.color
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.stroke(new Path2D(icon.path))
-    ctx.restore()
+    const iconImg = await loadIcon(a.key)
+    ctx.drawImage(iconImg, cx - 22, cy - 46, 44, 44)
 
     ctx.fillStyle = a.trump ? COLORS.mauve : COLORS.text
     ctx.font = '700 26px system-ui, sans-serif'
@@ -92,7 +86,7 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
     ctx.fillStyle = COLORS.subtext
     ctx.font = '15px system-ui, sans-serif'
     ctx.fillText(ATTRIBUTE_LABELS[a.key].toUpperCase(), cx, cy + 38, cellW - 12)
-  })
+  }
 
   ctx.fillStyle = COLORS.crust
   ctx.fillRect(0, CARD_H - footerH, CARD_W, footerH)
@@ -103,6 +97,17 @@ export async function renderCardPng(card: CardData, trumpMax: TrumpMaxSettings):
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encode failed'))), 'image/png'),
   )
+}
+
+const iconCache: Partial<Record<AttributeKey, HTMLImageElement>> = {}
+
+async function loadIcon(key: AttributeKey): Promise<HTMLImageElement> {
+  let img = iconCache[key]
+  if (!img) {
+    img = await loadImage(ICONS[key])
+    iconCache[key] = img
+  }
+  return img
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
