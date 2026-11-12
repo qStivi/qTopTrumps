@@ -253,92 +253,13 @@
   align-items: flex-start;
 }
 
-.card-preview {
+.card-preview-canvas {
   width: 340px;
-  aspect-ratio: 63 / 88;
+  display: block;
   border-radius: 12px;
-  border: calc(340px * 8 / 630) solid var(--crust);
-  background: var(--mantle);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.card-image {
-  width: 100%;
-  flex: 1 1 auto;
-  min-height: 0;
-  object-fit: cover;
-  border-radius: 8px;
-  background: var(--surface0);
-}
-
-.card-name-bar {
-  flex: 0 0 calc(100% * 56 / 864);
-  background: var(--crust);
-  color: var(--text);
-  font-weight: 700;
-  font-size: 15px;
-  text-align: center;
-  padding: 6px 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.card-icons {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 2px;
-  padding: 8px 6px;
-  background: var(--mantle);
-  flex: 0 0 calc(100% * 170 / 864);
-}
-
-.card-icon-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 0;
-  border-radius: 6px;
   cursor: pointer;
   user-select: none;
-
-  &.trump {
-    background: var(--surface0);
-    outline: 2px solid var(--mauve);
-    .card-icon-value {
-      color: var(--mauve);
-      font-weight: 700;
-    }
-  }
-}
-
-.card-icon-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.card-icon-label {
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--subtext);
-}
-
-.card-footer {
-  flex: 0 0 calc(100% * 44 / 864);
-  background: var(--crust);
-  color: var(--subtext);
-  font-size: 11px;
-  text-align: center;
-  padding: 5px 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  touch-action: none;
 }
 
 .editor-controls {
@@ -545,13 +466,6 @@
   }
 }
 
-.card-image.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--overlay0);
-  font-size: 14px;
-}
 
 .name-field {
   display: flex;

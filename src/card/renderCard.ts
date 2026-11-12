@@ -10,6 +10,7 @@ export const CARD_IMAGE_RATIO = 63 / 61 // w/h of the image area in an exported 
 export const CARD_BORDER_W = 8 // solid border stroke width around an exported card
 export const CARD_IMG_W = CARD_W - 2 * CARD_BORDER_W
 export const CARD_IMG_H = Math.round(CARD_IMG_W / CARD_IMAGE_RATIO)
+export const CARD_SECTIONS = { nameBarH: 56, iconsH: 170, footerH: 44 } as const
 
 const COLORS = {
   base: '#1e1e2e',
@@ -31,13 +32,23 @@ export async function renderCardPng(
   canvas.height = CARD_H
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D not available')
+  await drawCard(ctx, card, trumpMax, enums)
 
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encode failed'))), 'image/png'),
+  )
+}
+
+export async function drawCard(
+  ctx: CanvasRenderingContext2D,
+  card: CardData,
+  trumpMax: TrumpMaxSettings,
+  enums: EnumSettings,
+): Promise<void> {
   ctx.fillStyle = COLORS.mantle
   ctx.fillRect(0, 0, CARD_W, CARD_H)
 
-  const nameBarH = 56
-  const iconsH = 170
-  const footerH = 44
+  const { nameBarH, iconsH, footerH } = CARD_SECTIONS
   const imgX = CARD_BORDER_W
   const imgY = CARD_BORDER_W
   const imgW = CARD_IMG_W
@@ -110,10 +121,6 @@ export async function renderCardPng(
   ctx.lineWidth = CARD_BORDER_W
   roundRect(ctx, CARD_BORDER_W / 2, CARD_BORDER_W / 2, CARD_W - CARD_BORDER_W, CARD_H - CARD_BORDER_W, 22)
   ctx.stroke()
-
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('PNG encode failed'))), 'image/png'),
-  )
 }
 
 const iconCache: Partial<Record<AttributeKey, HTMLImageElement>> = {}

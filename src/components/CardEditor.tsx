@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ATTRIBUTE_LABELS } from '../card/attributes.ts'
 import type { AttributeKey } from '../card/attributes.ts'
-import { AttributeIcon } from './AttributeIcon.tsx'
+import { CardPreviewCanvas } from './CardPreviewCanvas.tsx'
 import { CropTool } from './CropTool.tsx'
 import { extractPayload, embedPayload } from '../card/pngMetadata.ts'
 import { cropToCardImageArea } from '../card/cardImage.ts'
 import { renderCardPng } from '../card/renderCard.ts'
-import { displayedValue, isTrumped } from '../card/cardData.ts'
+import { isTrumped } from '../card/cardData.ts'
 import { loadEnumSettings, loadTrumpMaxSettings, saveEnumSettings, saveTrumpMaxSettings } from '../card/settings.ts'
 import type { CardData, EnumSettings, TrumpMaxSettings } from '../card/types.ts'
 
@@ -21,7 +21,6 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
   const [enumEditorOpen, setEnumEditorOpen] = useState<AttributeKey | null>(null)
   const [newEnum, setNewEnum] = useState('')
   const [pendingImage, setPendingImage] = useState<string | null>(null)
-  const iconsRef = useRef<HTMLDivElement>(null)
   const [animeInput, setAnimeInput] = useState(() => card.animeTitles.join('\n'))
   const lastEmittedAnime = useRef(card.animeTitles.join('\n'))
 
@@ -43,18 +42,21 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
     [card, onChange],
   )
 
-  useEffect(() => {
-    const el = iconsRef.current
-    if (!el) return
-    function onWheel(e: WheelEvent) {
-      const cell = (e.target as HTMLElement).closest('.card-icon-cell')
-      const key = cell?.getAttribute('data-attr')
-      if (!key) return
+  const handleToggleTrump = useCallback(
+    (key: AttributeKey, currentlyTrumped: boolean) => {
+      updateAttribute(
+        key,
+        currentlyTrumped ? { trump: false, trumpDisabled: true } : { trump: true, trumpDisabled: false },
+      )
+    },
+    [updateAttribute],
+  )
+
+  const handleNudgeValue = useCallback(
+    (key: AttributeKey, dir: 1 | -1) => {
       const attr = card.attributes.find((a) => a.key === key)
       if (!attr) return
-      const dir = e.deltaY < 0 ? 1 : -1
-      e.preventDefault()
-      const options = enums[key as AttributeKey] ?? []
+      const options = enums[key] ?? []
       if (options.length > 0) {
         const idx = typeof attr.value === 'string' ? options.indexOf(attr.value) : -1
         updateAttribute(key, { value: options[(idx + dir + options.length) % options.length] })
@@ -62,10 +64,9 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
       }
       if (attr.value === null && dir < 0) return
       updateAttribute(key, { value: Math.max(0, (typeof attr.value === 'number' ? attr.value : 0) + dir) })
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
-  }, [card, updateAttribute, enums])
+    },
+    [card, updateAttribute, enums],
+  )
 
   const effective = useMemo(
     () => ({
@@ -148,38 +149,13 @@ export function CardEditor({ card, onChange }: CardEditorProps) {
 
   return (
     <div className="editor">
-      <div className="card-preview" aria-label="Card preview">
-        {effective.image ? (
-          <img className="card-image" src={effective.image} alt={effective.characterName} />
-        ) : (
-          <div className="card-image placeholder">No image yet</div>
-        )}
-        <div className="card-name-bar">{effective.characterName || 'New card'}</div>
-        <div className="card-icons" ref={iconsRef}>
-          {effective.attributes.map((a) => (
-            <div
-              key={a.key}
-              className={`card-icon-cell${a.trump ? ' trump' : ''}`}
-              data-attr={a.key}
-              onClick={() =>
-                updateAttribute(
-                  a.key,
-                  a.trump
-                    ? { trump: false, trumpDisabled: true }
-                    : { trump: true, trumpDisabled: false },
-                )
-              }
-            >
-              <AttributeIcon attribute={a.key} />
-              <span className="card-icon-value">{displayedValue(a.value, a.trump)}</span>
-              <span className="card-icon-label">{ATTRIBUTE_LABELS[a.key]}</span>
-            </div>
-          ))}
-        </div>
-        <div className="card-footer">
-          {effective.animeTitles.length > 0 ? effective.animeTitles.join(', ') : '—'}
-        </div>
-      </div>
+      <CardPreviewCanvas
+        card={effective}
+        trumpMax={trumpMax}
+        enums={enums}
+        onToggleTrump={handleToggleTrump}
+        onNudgeValue={handleNudgeValue}
+      />
 
       <div className="editor-controls">
         <div className="image-controls">
