@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { renderMarkdown } from './markdown.tsx'
 import type { Character } from '../anilist/types.ts'
 import { fetchUserCharacters, searchCharacters } from '../anilist/queries.ts'
 
@@ -31,24 +30,6 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
 
   return (
     <div className="picker">
-      <div className="picker-selected">
-        {selected ? (
-          <>
-            <span className="result-name">{selected.name}</span>
-            {selected.animeTitles.length > 0 && (
-              <span className="result-anime">{selected.animeTitles.join(', ')}</span>
-            )}
-            {selected.description && (
-              <div className="picker-selected-description">
-                {renderMarkdown(selected.description.replace(/~([^~]*)~/g, '$1').trim())}
-              </div>
-            )}
-          </>
-        ) : (
-          <span className="picker-selected-empty">Select a character to see its details</span>
-        )}
-      </div>
-      <div className="picker-main">
       <div className="picker-controls">
         <form
           onSubmit={(e) => {
@@ -108,7 +89,6 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
             )}
           </button>
         ))}
-      </div>
       </div>
     </div>
   )
