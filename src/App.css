@@ -258,9 +258,9 @@
 }
 
 .editor-controls {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 2;
-  width: 100%;
+  width: 340px;
   min-width: 0;
   display: flex;
   flex-direction: column;
