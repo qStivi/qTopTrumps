@@ -31,19 +31,23 @@ export function CharacterPicker({ onSelect, selected }: CharacterPickerProps) {
 
   return (
     <div className="picker">
-      {selected && (
-        <div className="picker-selected">
-          <span className="result-name">{selected.name}</span>
-          {selected.animeTitles.length > 0 && (
-            <span className="result-anime">{selected.animeTitles.join(', ')}</span>
-          )}
-          {selected.description && (
-            <div className="picker-selected-description">
-              {renderMarkdown(selected.description.replace(/~([^~]*)~/g, '$1').trim())}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="picker-selected">
+        {selected ? (
+          <>
+            <span className="result-name">{selected.name}</span>
+            {selected.animeTitles.length > 0 && (
+              <span className="result-anime">{selected.animeTitles.join(', ')}</span>
+            )}
+            {selected.description && (
+              <div className="picker-selected-description">
+                {renderMarkdown(selected.description.replace(/~([^~]*)~/g, '$1').trim())}
+              </div>
+            )}
+          </>
+        ) : (
+          <span className="picker-selected-empty">Select a character to see its details</span>
+        )}
+      </div>
       <div className="picker-main">
       <div className="picker-controls">
         <form

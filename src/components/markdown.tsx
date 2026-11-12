@@ -10,35 +10,32 @@ export function renderMarkdown(text: string): ReactNode[] {
   const out: ReactNode[] = []
   text.split('\n').forEach((line, li) => {
     if (li > 0) out.push(<br key={`br-${li}`} />)
-    line.split(INLINE).forEach((part, pi) => {
-      if (!part) return
-      const key = `${li}-${pi}`
-      let m = part.match(/^\*\*([^*]+)\*\*$/)
-      if (m) {
+    INLINE.lastIndex = 0
+    let last = 0
+    let m: RegExpExecArray | null
+    let part = 0
+    while ((m = INLINE.exec(line)) !== null) {
+      if (m.index > last) out.push(line.slice(last, m.index))
+      const key = `${li}-${part++}`
+      if (m[1] !== undefined) {
         out.push(<strong key={key}>{m[1]}</strong>)
-        return
-      }
-      m = part.match(/^\*([^*]+)\*$/)
-      if (m) {
-        out.push(<em key={key}>{m[1]}</em>)
-        return
-      }
-      m = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/)
-      if (m) {
-        const href = safeUrl(m[2])
+      } else if (m[2] !== undefined) {
+        out.push(<em key={key}>{m[2]}</em>)
+      } else if (m[3] !== undefined) {
+        const href = safeUrl(m[4])
         out.push(
           href ? (
             <a key={key} href={href} target="_blank" rel="noreferrer">
-              {m[1]}
+              {m[3]}
             </a>
           ) : (
-            <span key={key}>{part}</span>
+            <span key={key}>{m[0]}</span>
           ),
         )
-        return
       }
-      out.push(part)
-    })
+      last = m.index + m[0].length
+    }
+    if (last < line.length) out.push(line.slice(last))
   })
   return out
 }
