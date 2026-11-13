@@ -5,10 +5,15 @@ name: Smoke
 # the PR head and drives the real app in headless Chromium. Intended as a
 # REQUIRED status check (branch protection) — it is the mechanical "tested
 # before merge" layer and deliberately contains no LLM.
+#
+# Deliberately NOT triggered by `opened`: the gate is tied to the draft ->
+# ready transition (and pushes/reopens while non-draft). A PR created
+# directly as ready gets a preview but no smoke run until its next push —
+# intended behavior, do not "fix".
 
 on:
   pull_request:
-    types: [opened, ready_for_review, synchronize, reopened]
+    types: [ready_for_review, synchronize, reopened]
 
 permissions:
   contents: read
