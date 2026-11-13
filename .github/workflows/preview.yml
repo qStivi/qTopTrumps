@@ -57,10 +57,10 @@ jobs:
       - name: Sanity-check derived key and derive port (defense before rm -rf)
         run: |
           set -eu
-          case "$REPO_KEY" in
-            qtoptrumps-pr-[0-9]*) ;;
-            *) echo "unexpected REPO_KEY '$REPO_KEY'"; exit 1 ;;
-          esac
+          if ! [[ "$REPO_KEY" =~ ^qtoptrumps-pr-[0-9]+$ ]]; then
+            echo "unexpected REPO_KEY '$REPO_KEY'"
+            exit 1
+          fi
           PREVIEW_PORT=$((31000 + PR_NUMBER))
           [ "$PREVIEW_PORT" -ge 31000 ] && [ "$PREVIEW_PORT" -le 64999 ]
           echo "PREVIEW_PORT=$PREVIEW_PORT" >> "$GITHUB_ENV"
@@ -182,10 +182,10 @@ jobs:
       - name: Sanity-check derived key (defense before rm -rf)
         run: |
           set -eu
-          case "$REPO_KEY" in
-            qtoptrumps-pr-[0-9]*) ;;
-            *) echo "unexpected REPO_KEY '$REPO_KEY'"; exit 1 ;;
-          esac
+          if ! [[ "$REPO_KEY" =~ ^qtoptrumps-pr-[0-9]+$ ]]; then
+            echo "unexpected REPO_KEY '$REPO_KEY'"
+            exit 1
+          fi
 
       - name: Remove registry entry (contract, removed before stop)
         run: |
