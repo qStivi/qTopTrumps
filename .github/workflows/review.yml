@@ -1,22 +1,23 @@
 name: Review
 
-# Layer 2+3 of the solo review workflow. Runs a fresh, fenced vibe-cli session
-# on a self-hosted runner. Findings are posted as PR comments, read-only; the
-# bot never approves and never merges. See the review-pipeline repo for the
-# design invariants — every oddity below closes a hole found in the field.
+# Layer 2+3 of the solo review workflow, DRAFT PHASE. Runs a fresh, fenced
+# vibe-cli session on a self-hosted runner. Findings are posted as PR
+# comments, read-only; the bot never approves and never merges. See the
+# review-pipeline repo for the design invariants — every oddity below closes
+# a hole found in the field.
 
 on:
   pull_request:
-    # opened/ready_for_review: initial review exactly once (created-ready OR
-    # draft->ready flip); the job-level draft gate below prevents review of
-    # premature draft states
-    # synchronize: re-review new commits on an already-reviewed (non-draft) PR
-    types: [opened, ready_for_review, synchronize, reopened]
+    # The reviewer iterates with you while the PR is a DRAFT; it goes silent
+    # once you mark ready. Marking ready hands the PR to the smoke gate
+    # (smoke.yml) instead. The job-level draft gate below enforces draft-only.
+    # synchronize: re-review new commits pushed to a still-draft PR
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
     runs-on: self-hosted
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == true
     permissions:
       pull-requests: write
       contents: read
@@ -65,7 +66,7 @@ jobs:
         if: steps.rounds.outputs.count >= 3
         run: |
           if ! gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**Review round cap reached"))] | length' | grep -q '[1-9]'; then
-            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "**Review round cap reached** (3). Per the round discipline: stop iterating, rethink the approach (Layer 0), then open a fresh PR or push a restructured change."
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "**Review round cap reached** (3). Per the round discipline: stop iterating, rethink the approach (Layer 0), then open a fresh PR or push a restructured change. If the restructured approach lands in THIS PR, reset the round counter with a /reset-rounds comment (see reset-rounds.yml)."
           fi
           exit 0
         env:
