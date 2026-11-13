@@ -35,10 +35,18 @@ name: Preview
 # branch lives in this repo (fork PRs get none — the review agent still
 # reviews base + diff only, and ci.yml/smoke.yml run on GitHub-hosted
 # runners), and dependabot PRs are excluded as pure churn.
+#
+# PIPELINE PHASES (2026-11-13, per the agreed design):
+# - DRAFT: only the AI reviewer (review.yml) iterates. No preview deploy —
+#   nothing to click while drafting, no runner cycles burned.
+# - READY FOR REVIEW: the deterministic Playwright smoke gate (smoke.yml)
+#   runs AND this preview deploys, so the PR comment's URL is for MANUAL
+#   testing of the ready build. Pushes while non-draft redeploy it.
+# - Converted back to draft or closed: teardown removes the preview.
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, ready_for_review, synchronize, reopened, closed, converted_to_draft]
 
 permissions:
   contents: read
@@ -56,6 +64,8 @@ jobs:
   preview:
     if: >-
       github.event.action != 'closed' &&
+      github.event.action != 'converted_to_draft' &&
+      github.event.pull_request.draft == false &&
       github.event.pull_request.head.user.login == github.repository_owner &&
       github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: [self-hosted, qtoptrumps]
@@ -205,7 +215,7 @@ jobs:
 
   teardown:
     if: >-
-      github.event.action == 'closed' &&
+      (github.event.action == 'closed' || github.event.action == 'converted_to_draft') &&
       github.event.pull_request.head.user.login == github.repository_owner
     runs-on: [self-hosted, qtoptrumps]
     timeout-minutes: 5
@@ -252,7 +262,7 @@ jobs:
             --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | first // empty' || true)
           if [ -n "$CID" ]; then
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
-              -f body="**PR preview** — PR closed; preview processes stopped and checkout removed."
+              -f body="**PR preview** — PR closed (or back to draft); preview processes stopped and checkout removed."
           fi
 
 
@@ -270,6 +280,8 @@ jobs:
     needs: preview
     if: >-
       github.event.action != 'closed' &&
+      github.event.action != 'converted_to_draft' &&
+      github.event.pull_request.draft == false &&
       github.event.pull_request.head.user.login == github.repository_owner &&
       github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: [self-hosted, qtoptrumps]

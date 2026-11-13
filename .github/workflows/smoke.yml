@@ -8,7 +8,7 @@ name: Smoke
 
 on:
   pull_request:
-    types: [ready_for_review, synchronize, reopened]
+    types: [opened, ready_for_review, synchronize, reopened]
 
 permissions:
   contents: read
