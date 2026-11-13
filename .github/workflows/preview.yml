@@ -9,6 +9,13 @@ name: Preview
 # https://*.trycloudflare.com URL, rotated on every (re)start — so the PR
 # comment is updated in place on each run.
 #
+# NOTE (2026-11-13): the runner's job-end cleanup kills the pm2 processes
+# started by the preview job's steps; pm2 restarts them instantly and the
+# restarted cloudflared gets yet another URL. Because of that, only the
+# settle job (running AFTER the preview job ended) posts the URL — the URL
+# seen inside the preview job is already dead by the time it could be
+# clicked.
+#
 # Server contract (CT 149 — /opt/previews/README.md + Confluence session
 # log pageId 46727169):
 # - checkout lives at /opt/previews/<repo>-pr-<n>/
@@ -188,21 +195,13 @@ jobs:
           echo "preview did not return 200 through the tunnel (last code: $CODE)"
           exit 1
 
-      - name: Upsert preview comment on the PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -eu
-          BODY="**PR preview**: $PREVIEW_URL
-
-          Live build of this PR's head. Quick-tunnel URL — it rotates on every push to this PR; this comment is kept up to date. Processes stop and the checkout is removed automatically when the PR closes. Managed by \`.github/workflows/preview.yml\`."
-          CID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | first // empty' || true)
-          if [ -n "$CID" ]; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -f body="$BODY"
-          else
-            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
-          fi
+  # The PR comment with the preview URL is NOT written by the preview job.
+  # The Actions runner kills the processes spawned by a job's steps when
+  # that job ends; pm2 restarts them within seconds, and the restarted
+  # cloudflared announces a NEW random trycloudflare URL. The URL verified
+  # inside the preview job above is therefore dead moments after the job
+  # completes. The settle job below runs after that restart and posts the
+  # URL that actually stays up.
 
   teardown:
     if: >-
@@ -256,15 +255,18 @@ jobs:
               -f body="**PR preview** — PR closed; preview processes stopped and checkout removed."
           fi
 
-  post-mortem:
-    # TEMPORARY diagnostic (2026-11-13): the quick tunnel answers HTTP 200
-    # during the in-job verify, then dies at the edge (1033/530) within
-    # ~2 minutes after the preview job completes. This job runs in a fresh
-    # process tree after the preview job has fully ended, probes BOTH the
-    # local pm2 server and the tunnel, and dumps pm2/cloudflared state into
-    # a PR comment. If the local server is dead too, the runner's job-end
-    # cleanup kills job-spawned pm2 processes; if only the tunnel is dead,
-    # it is a cloudflared problem. Read-only. Remove once the cause is fixed.
+
+  settle:
+    # See the NOTE in the file header: the preview job's steps spawn the
+    # pm2-managed serve + cloudflared processes; when that job ends, the
+    # runner kills them and pm2 restarts both within seconds. serve rebinds
+    # the same port, but the restarted cloudflared announces a NEW random
+    # trycloudflare URL, so any URL captured during the preview job is dead
+    # by now. This job runs after the restart, reads the tunnel's CURRENT
+    # URL (last match in this run's tunnel log), verifies it through the
+    # edge, and only then upserts the PR comment. It is read-only towards
+    # the tunnel processes — later jobs do not trigger the job-end cleanup
+    # again, so the posted URL stays valid until the next push.
     needs: preview
     if: >-
       github.event.action != 'closed' &&
@@ -280,51 +282,48 @@ jobs:
             echo "unexpected REPO_KEY '$REPO_KEY'"
             exit 1
           fi
-          PREVIEW_PORT=$((31000 + PR_NUMBER))
-          echo "PREVIEW_PORT=$PREVIEW_PORT" >> "$GITHUB_ENV"
 
-      - name: Probe preview and tunnel after job end, report state
+      - name: Read the settled tunnel URL and verify it responds
+        run: |
+          set -eu
+          # Give the post-job kill + pm2 restart a moment to happen, then
+          # take the LAST URL in this run's tunnel log (the restarted
+          # process appends a new banner) and confirm it serves HTTP 200.
+          sleep 15
+          LOG="/opt/previews/$REPO_KEY-tunnel-$GITHUB_RUN_ID.log"
+          URL=""
+          CODE=""
+          for i in $(seq 1 40); do
+            if [ -f "$LOG" ]; then
+              URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" | tail -n1 || true)
+            fi
+            if [ -n "$URL" ]; then
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || true)
+              if [ "$CODE" = "200" ]; then break; fi
+            fi
+            sleep 3
+          done
+          if [ "$CODE" != "200" ]; then
+            echo "tunnel did not settle on a working URL (last: ${URL:-none}, code: ${CODE:-none})"
+            echo "--- cloudflared log tail ---"
+            tail -n 40 "$LOG" 2>/dev/null || true
+            exit 1
+          fi
+          echo "PREVIEW_URL=$URL" >> "$GITHUB_ENV"
+          echo "settled tunnel serves 200: $URL"
+
+      - name: Upsert preview comment on the PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          sleep 150
-          LOG=$(ls -t "/opt/previews/$REPO_KEY-tunnel-"*.log 2>/dev/null | head -n1 || true)
-          URL=""
-          if [ -n "$LOG" ]; then
-            URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" | head -n1 || true)
-          fi
-          CODE_TUNNEL="n/a"
-          if [ -n "$URL" ]; then
-            CODE_TUNNEL=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || true)
-          fi
-          CODE_LOCAL=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$PREVIEW_PORT" || true)
-          {
-            echo "**PR preview post-mortem** (temporary diagnostic)"
-            echo ""
-            echo "- local server on port $PREVIEW_PORT: HTTP \`${CODE_LOCAL}\`"
-            echo "- tunnel \`${URL:-none found}\`: HTTP \`${CODE_TUNNEL}\`"
-            echo ""
-            echo '<details><summary>pm2 state</summary>'
-            echo ""
-            echo '```'
-            pm2 ls || true
-            pm2 describe "$REPO_KEY" || true
-            pm2 describe "$REPO_KEY-tunnel" || true
-            echo '```'
-            echo '</details>'
-            echo ""
-            echo '<details><summary>cloudflared log, last 40 lines</summary>'
-            echo ""
-            echo '```'
-            if [ -n "$LOG" ]; then tail -n 40 "$LOG"; else echo "no log file"; fi
-            echo '```'
-            echo '</details>'
-          } > /tmp/postmortem.body
+          BODY="**PR preview**: $PREVIEW_URL
+
+          Live build of this PR's head. Quick-tunnel URL — it rotates on every push to this PR; this comment is kept up to date. Processes stop and the checkout is removed automatically when the PR closes. Managed by \`.github/workflows/preview.yml\`."
           CID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview post-mortem**")) | .id] | first // empty' || true)
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | first // empty' || true)
           if [ -n "$CID" ]; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -F body=@/tmp/postmortem.body
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -f body="$BODY"
           else
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -F body=@/tmp/postmortem.body
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$BODY"
           fi
