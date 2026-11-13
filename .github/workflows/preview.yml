@@ -6,8 +6,10 @@ name: Preview
 # certificate covering two levels (Free-plan universal SSL covers one level;
 # ACM or a dedicated domain would fix it — revisit if stable URLs start to
 # matter). Quick tunnels need no account and give each PR a random
-# https://*.trycloudflare.com URL, rotated on every (re)start — so the PR
-# comment is updated in place on each run.
+# https://*.trycloudflare.com URL, rotated on every (re)start — so each
+# deploy posts a FRESH PR comment (always the newest on the timeline);
+# previous preview comments are kept as history and marked superseded,
+# never deleted.
 #
 # NOTE (2026-11-13): the runner's job-end cleanup kills the pm2 processes
 # started by the preview job's steps; pm2 restarts them instantly and the
@@ -259,7 +261,7 @@ jobs:
         run: |
           set -eu
           CID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | first // empty' || true)
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | last // empty' || true)
           if [ -n "$CID" ]; then
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
               -f body="**PR preview** — PR closed (or back to draft); preview processes stopped and checkout removed."
@@ -324,18 +326,22 @@ jobs:
           echo "PREVIEW_URL=$URL" >> "$GITHUB_ENV"
           echo "settled tunnel serves 200: $URL"
 
-      - name: Upsert preview comment on the PR
+      - name: Post fresh preview comment on the PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
+          # Fresh comment per deploy so the current URL is always the NEWEST
+          # preview comment on the timeline. No deletes: previous preview
+          # comments stay as history but get marked superseded, so their
+          # rotated URLs are not mistaken for broken links.
           BODY="**PR preview**: $PREVIEW_URL
 
-          Live build of this PR's head. Quick-tunnel URL — it rotates on every push to this PR; this comment is kept up to date. Processes stop and the checkout is removed automatically when the PR closes. Managed by \`.github/workflows/preview.yml\`."
-          CID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | first // empty' || true)
-          if [ -n "$CID" ]; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -f body="$BODY"
-          else
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$BODY"
-          fi
+          Live build of this PR's head. Quick-tunnel URL — it rotates on every push to this PR; the newest **PR preview** comment always has the current one. Processes stop and the checkout are removed automatically when the PR closes. Managed by \`.github/workflows/preview.yml\`."
+          IDS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | select(.body | contains("(superseded") | not) | .id] | join(" ")' || true)
+          for CID in $IDS; do
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
+              -f body="**PR preview** (superseded by a newer build — the current URL is in the newest **PR preview** comment)."
+          done
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$BODY"
