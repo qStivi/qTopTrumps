@@ -78,8 +78,22 @@ jobs:
 
       - name: Stop previous preview processes for this PR (if any)
         run: |
+          set -eu
           pm2 delete "$REPO_KEY-tunnel" 2>/dev/null || true
           pm2 delete "$REPO_KEY" 2>/dev/null || true
+          # pm2 delete does not guarantee the port is released immediately;
+          # a lingering LISTEN from the old run would break the rebind below.
+          command -v ss >/dev/null 2>&1 || { echo "ss not available — skipping port check"; exit 0; }
+          for i in $(seq 1 15); do
+            if ! ss -ltn | grep -q ":$PREVIEW_PORT "; then
+              echo "port $PREVIEW_PORT is free"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "port $PREVIEW_PORT still bound 15s after stopping the old preview:"
+          ss -ltnp || true
+          exit 1
 
       - name: Checkout PR head
         uses: actions/checkout@v7
@@ -107,8 +121,20 @@ jobs:
             --interpreter /usr/bin/node \
             --cwd "/opt/previews/$REPO_KEY" \
             -- -s "/opt/previews/$REPO_KEY/dist" -l "tcp://127.0.0.1:$PREVIEW_PORT"
-          sleep 2
-          pm2 ls | grep "$REPO_KEY"
+          # Wait until the server actually accepts connections on the port
+          # before the registry entry and the tunnel are created against it.
+          CODE=""
+          for i in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PREVIEW_PORT" || true)
+            if [ "$CODE" = "200" ]; then
+              echo "preview server responds locally (200)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "preview server did not respond locally (last code: '$CODE')"
+          pm2 logs "$REPO_KEY" --nostream --lines 30 || true
+          exit 1
 
       - name: Register in registry.json (contract, after start, atomic)
         run: |
@@ -127,18 +153,24 @@ jobs:
       - name: Start quick tunnel and capture its URL
         run: |
           set -eu
+          # pm2 keeps log files per process NAME, so pm2 logs on a recreated
+          # process replays the previous run's output — including the previous
+          # run's (now dead) trycloudflare URL. Use a per-run log file instead
+          # and remove stale ones from earlier runs.
+          LOG="/opt/previews/$REPO_KEY-tunnel-$GITHUB_RUN_ID.log"
+          rm -f "/opt/previews/$REPO_KEY-tunnel-"*.log
           pm2 start /usr/local/bin/cloudflared --name "$REPO_KEY-tunnel" \
+            -o "$LOG" -e "$LOG" \
             -- tunnel --url "http://127.0.0.1:$PREVIEW_PORT"
           URL=""
           for i in $(seq 1 30); do
-            URL=$(pm2 logs "$REPO_KEY-tunnel" --nostream --lines 200 2>/dev/null \
-              | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | head -n1 || true)
+            URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" 2>/dev/null | head -n1 || true)
             [ -n "$URL" ] && break
             sleep 2
           done
           if [ -z "$URL" ]; then
             echo "no tunnel URL after 60s — cloudflared output:"
-            pm2 logs "$REPO_KEY-tunnel" --nostream --lines 50 || true
+            tail -n 50 "$LOG" || true
             exit 1
           fi
           echo "PREVIEW_URL=$URL" >> "$GITHUB_ENV"
@@ -207,8 +239,10 @@ jobs:
           pm2 delete "$REPO_KEY-tunnel" 2>/dev/null || true
           pm2 delete "$REPO_KEY" 2>/dev/null || true
 
-      - name: Remove checkout
-        run: rm -rf "/opt/previews/$REPO_KEY"
+      - name: Remove checkout and stale tunnel logs
+        run: |
+          rm -rf "/opt/previews/$REPO_KEY"
+          rm -f "/opt/previews/$REPO_KEY-tunnel-"*.log
 
       - name: Mark preview comment as closed
         env:
