@@ -255,3 +255,76 @@ jobs:
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
               -f body="**PR preview** — PR closed; preview processes stopped and checkout removed."
           fi
+
+  post-mortem:
+    # TEMPORARY diagnostic (2026-11-13): the quick tunnel answers HTTP 200
+    # during the in-job verify, then dies at the edge (1033/530) within
+    # ~2 minutes after the preview job completes. This job runs in a fresh
+    # process tree after the preview job has fully ended, probes BOTH the
+    # local pm2 server and the tunnel, and dumps pm2/cloudflared state into
+    # a PR comment. If the local server is dead too, the runner's job-end
+    # cleanup kills job-spawned pm2 processes; if only the tunnel is dead,
+    # it is a cloudflared problem. Read-only. Remove once the cause is fixed.
+    needs: preview
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.user.login == github.repository_owner &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: [self-hosted, qtoptrumps]
+    timeout-minutes: 10
+    steps:
+      - name: Sanity-check derived key (defense before reading /opt/previews)
+        run: |
+          set -eu
+          if ! [[ "$REPO_KEY" =~ ^qtoptrumps-pr-[0-9]+$ ]]; then
+            echo "unexpected REPO_KEY '$REPO_KEY'"
+            exit 1
+          fi
+          PREVIEW_PORT=$((31000 + PR_NUMBER))
+          echo "PREVIEW_PORT=$PREVIEW_PORT" >> "$GITHUB_ENV"
+
+      - name: Probe preview and tunnel after job end, report state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          sleep 150
+          LOG=$(ls -t "/opt/previews/$REPO_KEY-tunnel-"*.log 2>/dev/null | head -n1 || true)
+          URL=""
+          if [ -n "$LOG" ]; then
+            URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" | head -n1 || true)
+          fi
+          CODE_TUNNEL="n/a"
+          if [ -n "$URL" ]; then
+            CODE_TUNNEL=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || true)
+          fi
+          CODE_LOCAL=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$PREVIEW_PORT" || true)
+          {
+            echo "**PR preview post-mortem** (temporary diagnostic)"
+            echo ""
+            echo "- local server on port $PREVIEW_PORT: HTTP \`${CODE_LOCAL}\`"
+            echo "- tunnel \`${URL:-none found}\`: HTTP \`${CODE_TUNNEL}\`"
+            echo ""
+            echo '<details><summary>pm2 state</summary>'
+            echo ""
+            echo '```'
+            pm2 ls || true
+            pm2 describe "$REPO_KEY" || true
+            pm2 describe "$REPO_KEY-tunnel" || true
+            echo '```'
+            echo '</details>'
+            echo ""
+            echo '<details><summary>cloudflared log, last 40 lines</summary>'
+            echo ""
+            echo '```'
+            if [ -n "$LOG" ]; then tail -n 40 "$LOG"; else echo "no log file"; fi
+            echo '```'
+            echo '</details>'
+          } > /tmp/postmortem.body
+          CID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview post-mortem**")) | .id] | first // empty' || true)
+          if [ -n "$CID" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -F body=@/tmp/postmortem.body
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -F body=@/tmp/postmortem.body
+          fi
