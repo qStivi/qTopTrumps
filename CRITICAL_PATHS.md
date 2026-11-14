@@ -1,6 +1,6 @@
 # Critical paths — changes here are high risk
 
-A change touching any path below requires: author's read-through **plus** one independent review, per the tier table in the PR template. Every PR already gets the fenced review (`.github/workflows/review.yml`), and the reviewer reads this file from the base branch and flags `RISK:HIGH` in its verdict. No auto-label anymore: the old `tier.yml` labeled every PR because `src/*` matches all product changes, so the `high risk` label carried no signal.
+A change touching any path below requires: author's read-through **plus** one independent review, per the tier table in the PR template. Every PR already gets the fenced review (`.github/workflows/review.yml`), and the reviewer reads this file from the base branch and flags `RISK:HIGH` in its verdict. No auto-label anymore: the old `tier.yml` labeled every PR because `src/*` matches all product changes, so the `high risk` label carried no signal. The human risk tier in the PR template is unchanged and still required.
 
 ## Paths
 
