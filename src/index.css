@@ -56,7 +56,11 @@ p {
   margin: 0;
 }
 
-/* DELIBERATE ERROR - pipeline validation: this block is left unclosed
-   on purpose so the CSS build fails. Remove when the test is done. */
-.pipeline-error-test {
-  color: red;
+/* DELIBERATE ERROR (pipeline validation): visible CSS bug for gate testing.
+   The first payload (an unclosed block) was silently tolerated by the build
+   tooling — a real finding. Valid CSS with a wrong effect is what the smoke
+   suite can and must catch: hiding the h1 breaks the "app renders the main
+   workspace" assertions. Remove when the test is done. */
+h1 {
+  display: none;
+}
