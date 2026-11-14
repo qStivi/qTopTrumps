@@ -1,0 +1,347 @@
+name: Preview
+
+# Per-PR preview URL via a Cloudflare QUICK TUNNEL (decision 2026-11-13).
+# The persistent wildcard tunnel + preview-router on CT 149 stay in place,
+# but *.previews.qstivi.com is unreachable externally until the zone gets a
+# certificate covering two levels (Free-plan universal SSL covers one level;
+# ACM or a dedicated domain would fix it — revisit if stable URLs start to
+# matter). Quick tunnels need no account and give each PR a random
+# https://*.trycloudflare.com URL, rotated on every (re)start — so each
+# deploy posts a FRESH PR comment (always the newest on the timeline);
+# previous preview comments are kept as history and marked superseded,
+# never deleted.
+#
+# NOTE (2026-11-13): the runner's job-end cleanup kills the pm2 processes
+# started by the preview job's steps; pm2 restarts them instantly and the
+# restarted cloudflared gets yet another URL. Because of that, only the
+# settle job (running AFTER the preview job ended) posts the URL — the URL
+# seen inside the preview job is already dead by the time it could be
+# clicked.
+#
+# Server contract (CT 149 — /opt/previews/README.md + Confluence session
+# log pageId 46727169):
+# - checkout lives at /opt/previews/<repo>-pr-<n>/
+# - pm2 preview server named <repo>-pr-<n>, started as qstivi with
+#     pm2 start /usr/bin/serve --name <repo>-pr-<n> --interpreter /usr/bin/node \
+#       --cwd /opt/previews/<repo>-pr-<n> -- -s .../dist -l tcp://127.0.0.1:<port>
+# - quick tunnel is a second pm2 process named <repo>-pr-<n>-tunnel
+# - registry.json entry {"<repo>-pr-<n>": <port>} written AFTER start,
+#   removed BEFORE stop (atomic tmp+mv), registry re-read by the router per
+#   request
+# - port = 31000 + PR number; never `pm2 save` previews; never touch
+#   preview-router or qtoptrumps-prod
+#
+# SECURITY: this is the only workflow in the pipeline that executes
+# unmerged PR code on the self-hosted runner. The gate below narrows it to
+# the repository owner's own branches: a PR gets a preview only if its HEAD
+# branch lives in this repo (fork PRs get none — the review agent still
+# reviews base + diff only, and ci.yml/smoke.yml run on GitHub-hosted
+# runners), and dependabot PRs are excluded as pure churn.
+#
+# PIPELINE PHASES (2026-11-13, per the agreed design):
+# - DRAFT: only the AI reviewer (review.yml) iterates. No preview deploy —
+#   nothing to click while drafting, no runner cycles burned.
+# - READY FOR REVIEW: the deterministic Playwright smoke gate (smoke.yml)
+#   runs AND this preview deploys, so the PR comment's URL is for MANUAL
+#   testing of the ready build. Pushes while non-draft redeploy it.
+# - Converted back to draft or closed: teardown removes the preview.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, synchronize, reopened, closed, converted_to_draft]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  REPO_KEY: qtoptrumps-pr-${{ github.event.pull_request.number }}
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+
+jobs:
+  preview:
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.action != 'converted_to_draft' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.user.login == github.repository_owner &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: [self-hosted, qtoptrumps]
+    timeout-minutes: 20
+    steps:
+      - name: Sanity-check derived key and derive port (defense before rm -rf)
+        run: |
+          set -eu
+          if ! [[ "$REPO_KEY" =~ ^qtoptrumps-pr-[0-9]+$ ]]; then
+            echo "unexpected REPO_KEY '$REPO_KEY'"
+            exit 1
+          fi
+          PREVIEW_PORT=$((31000 + PR_NUMBER))
+          [ "$PREVIEW_PORT" -ge 31000 ] && [ "$PREVIEW_PORT" -le 64999 ]
+          echo "PREVIEW_PORT=$PREVIEW_PORT" >> "$GITHUB_ENV"
+          echo "key=$REPO_KEY port=$PREVIEW_PORT"
+
+      - name: Check free disk space (CT 149 has 8 GB; each preview is roughly 0.5 GB)
+        run: |
+          set -eu
+          AVAIL_KB=$(df --output=avail -k /opt/previews | tail -n1 | tr -d ' ')
+          if [ "$AVAIL_KB" -lt 1048576 ]; then
+            echo "less than 1 GiB free on /opt/previews — not building a preview (close old PRs to reclaim)"
+            exit 1
+          fi
+          echo "$((AVAIL_KB / 1024)) MiB free"
+
+      - name: Stop previous preview processes for this PR (if any)
+        run: |
+          set -eu
+          pm2 delete "$REPO_KEY-tunnel" 2>/dev/null || true
+          pm2 delete "$REPO_KEY" 2>/dev/null || true
+          # pm2 delete does not guarantee the port is released immediately;
+          # a lingering LISTEN from the old run would break the rebind below.
+          command -v ss >/dev/null 2>&1 || { echo "ss not available — skipping port check"; exit 0; }
+          for i in $(seq 1 15); do
+            if ! ss -ltn | grep -q ":$PREVIEW_PORT "; then
+              echo "port $PREVIEW_PORT is free"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "port $PREVIEW_PORT still bound 15s after stopping the old preview:"
+          ss -ltnp || true
+          exit 1
+
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr-preview-checkout
+
+      - name: Move checkout into /opt/previews
+        run: |
+          set -eu
+          rm -rf "/opt/previews/$REPO_KEY"
+          mv pr-preview-checkout "/opt/previews/$REPO_KEY"
+
+      - name: Build
+        run: |
+          set -eu
+          cd "/opt/previews/$REPO_KEY"
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Start preview server (pm2 contract)
+        run: |
+          set -eu
+          pm2 start /usr/bin/serve --name "$REPO_KEY" \
+            --interpreter /usr/bin/node \
+            --cwd "/opt/previews/$REPO_KEY" \
+            -- -s "/opt/previews/$REPO_KEY/dist" -l "tcp://127.0.0.1:$PREVIEW_PORT"
+          # Wait until the server actually accepts connections on the port
+          # before the registry entry and the tunnel are created against it.
+          CODE=""
+          for i in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PREVIEW_PORT" || true)
+            if [ "$CODE" = "200" ]; then
+              echo "preview server responds locally (200)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "preview server did not respond locally (last code: '$CODE')"
+          pm2 logs "$REPO_KEY" --nostream --lines 30 || true
+          exit 1
+
+      - name: Register in registry.json (contract, after start, atomic)
+        run: |
+          set -eu
+          node -e '
+            const fs = require("fs");
+            const p = "/opt/previews/registry.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j[process.env.REPO_KEY] = Number(process.env.PREVIEW_PORT);
+            const t = p + ".tmp";
+            fs.writeFileSync(t, JSON.stringify(j, null, 2) + "\n");
+            fs.renameSync(t, p);
+            console.log("registered", process.env.REPO_KEY, "->", process.env.PREVIEW_PORT);
+          '
+
+      - name: Start quick tunnel and capture its URL
+        run: |
+          set -eu
+          # pm2 keeps log files per process NAME, so pm2 logs on a recreated
+          # process replays the previous run's output — including the previous
+          # run's (now dead) trycloudflare URL. Use a per-run log file instead
+          # and remove stale ones from earlier runs.
+          LOG="/opt/previews/$REPO_KEY-tunnel-$GITHUB_RUN_ID.log"
+          rm -f "/opt/previews/$REPO_KEY-tunnel-"*.log
+          pm2 start /usr/local/bin/cloudflared --name "$REPO_KEY-tunnel" \
+            -o "$LOG" -e "$LOG" \
+            -- tunnel --url "http://127.0.0.1:$PREVIEW_PORT"
+          URL=""
+          for i in $(seq 1 30); do
+            URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" 2>/dev/null | head -n1 || true)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+          if [ -z "$URL" ]; then
+            echo "no tunnel URL after 60s — cloudflared output:"
+            tail -n 50 "$LOG" || true
+            exit 1
+          fi
+          echo "PREVIEW_URL=$URL" >> "$GITHUB_ENV"
+          echo "tunnel up: $URL"
+
+      - name: Verify the preview responds through the tunnel
+        run: |
+          set -eu
+          CODE=""
+          for i in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' "$PREVIEW_URL" || true)
+            if [ "$CODE" = "200" ]; then echo "preview serves HTTP 200"; exit 0; fi
+            sleep 4
+          done
+          echo "preview did not return 200 through the tunnel (last code: $CODE)"
+          exit 1
+
+  # The PR comment with the preview URL is NOT written by the preview job.
+  # The Actions runner kills the processes spawned by a job's steps when
+  # that job ends; pm2 restarts them within seconds, and the restarted
+  # cloudflared announces a NEW random trycloudflare URL. The URL verified
+  # inside the preview job above is therefore dead moments after the job
+  # completes. The settle job below runs after that restart and posts the
+  # URL that actually stays up.
+
+  teardown:
+    if: >-
+      (github.event.action == 'closed' || github.event.action == 'converted_to_draft') &&
+      github.event.pull_request.head.user.login == github.repository_owner
+    runs-on: [self-hosted, qtoptrumps]
+    timeout-minutes: 5
+    steps:
+      - name: Sanity-check derived key (defense before rm -rf)
+        run: |
+          set -eu
+          if ! [[ "$REPO_KEY" =~ ^qtoptrumps-pr-[0-9]+$ ]]; then
+            echo "unexpected REPO_KEY '$REPO_KEY'"
+            exit 1
+          fi
+
+      - name: Remove registry entry (contract, removed before stop)
+        run: |
+          set -eu
+          [ -f /opt/previews/registry.json ] || { echo "no registry file"; exit 0; }
+          node -e '
+            const fs = require("fs");
+            const p = "/opt/previews/registry.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            delete j[process.env.REPO_KEY];
+            const t = p + ".tmp";
+            fs.writeFileSync(t, JSON.stringify(j, null, 2) + "\n");
+            fs.renameSync(t, p);
+            console.log("unregistered", process.env.REPO_KEY);
+          ' || true
+
+      - name: Stop preview processes
+        run: |
+          pm2 delete "$REPO_KEY-tunnel" 2>/dev/null || true
+          pm2 delete "$REPO_KEY" 2>/dev/null || true
+
+      - name: Remove checkout and stale tunnel logs
+        run: |
+          rm -rf "/opt/previews/$REPO_KEY"
+          rm -f "/opt/previews/$REPO_KEY-tunnel-"*.log
+
+      - name: Mark preview comment as closed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          CID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | .id] | last // empty' || true)
+          if [ -n "$CID" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
+              -f body="**PR preview** — PR closed (or back to draft); preview processes stopped and checkout removed."
+          fi
+
+
+  settle:
+    # See the NOTE in the file header: the preview job's steps spawn the
+    # pm2-managed serve + cloudflared processes; when that job ends, the
+    # runner kills them and pm2 restarts both within seconds. serve rebinds
+    # the same port, but the restarted cloudflared announces a NEW random
+    # trycloudflare URL, so any URL captured during the preview job is dead
+    # by now. This job runs after the restart, reads the tunnel's CURRENT
+    # URL (last match in this run's tunnel log), verifies it through the
+    # edge, and only then upserts the PR comment. It is read-only towards
+    # the tunnel processes — later jobs do not trigger the job-end cleanup
+    # again, so the posted URL stays valid until the next push.
+    needs: preview
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.action != 'converted_to_draft' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.user.login == github.repository_owner &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: [self-hosted, qtoptrumps]
+    timeout-minutes: 10
+    steps:
+      - name: Sanity-check derived key (defense before reading /opt/previews)
+        run: |
+          set -eu
+          if ! [[ "$REPO_KEY" =~ ^qtoptrumps-pr-[0-9]+$ ]]; then
+            echo "unexpected REPO_KEY '$REPO_KEY'"
+            exit 1
+          fi
+
+      - name: Read the settled tunnel URL and verify it responds
+        run: |
+          set -eu
+          # Give the post-job kill + pm2 restart a moment to happen, then
+          # take the LAST URL in this run's tunnel log (the restarted
+          # process appends a new banner) and confirm it serves HTTP 200.
+          sleep 15
+          LOG="/opt/previews/$REPO_KEY-tunnel-$GITHUB_RUN_ID.log"
+          URL=""
+          CODE=""
+          for i in $(seq 1 40); do
+            if [ -f "$LOG" ]; then
+              URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$LOG" | tail -n1 || true)
+            fi
+            if [ -n "$URL" ]; then
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || true)
+              if [ "$CODE" = "200" ]; then break; fi
+            fi
+            sleep 3
+          done
+          if [ "$CODE" != "200" ]; then
+            echo "tunnel did not settle on a working URL (last: ${URL:-none}, code: ${CODE:-none})"
+            echo "--- cloudflared log tail ---"
+            tail -n 40 "$LOG" 2>/dev/null || true
+            exit 1
+          fi
+          echo "PREVIEW_URL=$URL" >> "$GITHUB_ENV"
+          echo "settled tunnel serves 200: $URL"
+
+      - name: Post fresh preview comment on the PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          # Fresh comment per deploy so the current URL is always the NEWEST
+          # preview comment on the timeline. No deletes: previous preview
+          # comments stay as history but get marked superseded, so their
+          # rotated URLs are not mistaken for broken links.
+          BODY="**PR preview**: $PREVIEW_URL
+
+          Live build of this PR's head. Quick-tunnel URL — it rotates on every push to this PR; the newest **PR preview** comment always has the current one. Processes stop and the checkout are removed automatically when the PR closes. Managed by \`.github/workflows/preview.yml\`."
+          IDS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**PR preview**")) | select(.body | contains("(superseded") | not) | .id] | join(" ")' || true)
+          for CID in $IDS; do
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
+              -f body="**PR preview** (superseded by a newer build — the current URL is in the newest **PR preview** comment)."
+          done
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$BODY"

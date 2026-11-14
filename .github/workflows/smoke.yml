@@ -1,0 +1,55 @@
+name: Smoke
+
+# Deterministic smoke gate for non-draft PRs. The vibe reviewer (review.yml)
+# iterates while the PR is a DRAFT; when you mark it ready, this suite builds
+# the PR head and drives the real app in headless Chromium. Intended as a
+# REQUIRED status check (branch protection) — it is the mechanical "tested
+# before merge" layer and deliberately contains no LLM.
+#
+# Deliberately NOT triggered by `opened`: the gate is tied to the draft ->
+# ready transition (and pushes/reopens while non-draft). A PR created
+# directly as ready gets a preview but no smoke run until its next push —
+# intended behavior, do not "fix".
+
+on:
+  pull_request:
+    types: [ready_for_review, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests (webServer serves the built app)
+        run: npm test
+
+      - name: Upload test artifacts (traces + landing screenshot)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
