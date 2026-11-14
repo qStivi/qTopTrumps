@@ -17,6 +17,7 @@ on:
 jobs:
   review:
     runs-on: self-hosted
+    timeout-minutes: 30
     if: github.event.pull_request.draft == true
     permissions:
       pull-requests: write
@@ -125,6 +126,7 @@ jobs:
             /tmp/pr-review-base-????) rm -rf "$BASE_DIR" ;;
             *) echo "BASE_DIR unexpected: '$BASE_DIR' — not removing" ;;
           esac
+          rm -f /tmp/pr.json /tmp/pr.diff /tmp/pr-commits.txt /tmp/pr-prompt.txt /tmp/review.md
 
       - name: Post pipeline-failure diagnostic (never a code finding)
         if: failure()

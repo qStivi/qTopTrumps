@@ -1,6 +1,6 @@
 # Critical paths — changes here are high risk
 
-A change touching any path below requires: author's read-through **plus** one independent review, per the tier table. The tier workflow (`.github/workflows/tier.yml`) applies the `high risk` label automatically when a diff matches its pattern list — **keep the two in sync**: paths live in CRITICAL_PATHS.md for humans, patterns in tier.yml for the machine.
+A change touching any path below requires: author's read-through **plus** one independent review, per the tier table in the PR template. Every PR already gets the fenced review (`.github/workflows/review.yml`), and the reviewer reads this file from the base branch and flags `RISK:HIGH` in its verdict. No auto-label anymore: the old `tier.yml` labeled every PR because `src/*` matches all product changes, so the `high risk` label carried no signal.
 
 ## Paths
 

@@ -17,6 +17,13 @@ Short by design. A checklist, not documentation. Full context: the repo's own SP
 - Pick the risk tier honestly; when in doubt round up
 - Review agent findings: fix, or reply with a clear written reason **backed by evidence** (primary source, live check)
 
+## Babysitting a PR (after you push)
+- Never write your own polling/`sleep` loop — one watcher per PR: `python3 scripts/pr-wait <pr>` from the repo root (`--repo qStivi/qTopTrumps` from elsewhere). Vendored from [t3dotgg/tstack](https://github.com/t3dotgg/tstack) (MIT).
+- Web UI: run it as one long-running command, it exits on its own. Harness with a monitor tool: run it under the monitor with a long timeout so each event line wakes you.
+- No Greptile/Macroscope bots here, so `--until ready` never completes — use `--until green` (required checks) or `--until any-change` (wake on the reviewer's comment / any event); restart after each push or event you handle.
+- Exit codes: 0 = done/merged, 1 = needs you (failed check, BEHIND/DIRTY, unresolved threads, closed), 2 = bad input or another pr-wait already owns this PR (kill that pid only if its events don't reach you).
+- Act only on events newer than your latest push. All watchers share one GitHub rate limit — if GraphQL is exhausted, read via REST (`gh api repos/<o>/<r>/pulls/<n>`, `.../commits/<sha>/check-runs`).
+
 ## Round discipline
 - Review capped at 3 rounds. Round 4 = stop, rethink the approach (Layer 0).
 - Re-reviews: new commits only.
