@@ -26,5 +26,6 @@ Short by design. A checklist, not documentation. Full context: the repo's own SP
 
 ## Round discipline
 - Review capped at 3 rounds. Round 4 = stop, rethink the approach (Layer 0).
+- `/reset-rounds` (owner only) starts a fresh round count via a marker comment — round comments are kept as history, not deleted.
 - Re-reviews: new commits only.
 - Red review check = reviewer broken, not code broken — check for the pipeline-failure comment before treating it as a finding.

@@ -55,12 +55,17 @@ jobs:
           done
           echo "Preflight OK: base criteria readable"
 
-      - name: Count prior review rounds (round cap = 3)
+      - name: Count review rounds since the last reset marker (round cap = 3)
         id: rounds
         run: |
+          # /reset-rounds posts a "**Review rounds reset**" marker instead of deleting
+          # comments; count only round comments at/after the newest marker.
+          SINCE=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "${{ vars.REVIEW_BOT_LOGIN }}" or .user.login == "github-actions[bot]") | select(.body | startswith("**Review rounds reset")) | .created_at] | max // "1970-01-01T00:00:00Z"')
           PREV=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "${{ vars.REVIEW_BOT_LOGIN }}" or .user.login == "github-actions[bot]") | select(.body | startswith("**Review (round"))] | length')
+            --jq "[.[] | select(.user.login == \"${{ vars.REVIEW_BOT_LOGIN }}\" or .user.login == \"github-actions[bot]\") | select(.body | startswith(\"**Review (round\")) | select(.created_at >= \"$SINCE\")] | length")
           echo "count=$PREV" >> "$GITHUB_OUTPUT"
+          echo "since=$SINCE" >> "$GITHUB_OUTPUT"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +73,7 @@ jobs:
       - name: Round cap reached — stop reviewing
         if: steps.rounds.outputs.count >= 3
         run: |
-          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**Review round cap reached"))] | length' | grep -q '[1-9]'; then
+          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq "[.[] | select(.user.login == \"github-actions[bot]\") | select(.body | startswith(\"**Review round cap reached\")) | select(.created_at >= \"${{ steps.rounds.outputs.since }}\")] | length" | grep -q '[1-9]'; then
             gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "**Review round cap reached** (3). Per the round discipline: stop iterating, rethink the approach (Layer 0), then open a fresh PR or push a restructured change. If the restructured approach lands in THIS PR, reset the round counter with a /reset-rounds comment (see reset-rounds.yml)."
           fi
           exit 0
