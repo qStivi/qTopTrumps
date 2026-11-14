@@ -55,8 +55,3 @@ h2 {
 p {
   margin: 0;
 }
-
-/* DELIBERATE ERROR - pipeline validation: this block is left unclosed
-   on purpose so the CSS build fails. Remove when the test is done. */
-.pipeline-error-test {
-  color: red;
