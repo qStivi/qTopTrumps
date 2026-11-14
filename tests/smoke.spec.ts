@@ -10,7 +10,7 @@ test('app renders the main workspace', async ({ page }) => {
   page.on('pageerror', (error) => pageErrors.push(String(error)))
 
   await page.goto('/')
-  await expect(page).toHaveTitle('qTopTrumps')
+  await expect(page).toHaveTitle('qTopTrumps - Card Generator')
   await expect(page.getByRole('heading', { level: 1, name: 'qTopTrumps' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Pick a character' })).toBeVisible()
   await expect(page.getByText('Select a character to see its details')).toBeVisible()
