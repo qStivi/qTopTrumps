@@ -17,10 +17,13 @@ on:
 jobs:
   review:
     runs-on: self-hosted
+    timeout-minutes: 10
     if: github.event.pull_request.draft == true
     permissions:
       pull-requests: write
       contents: read
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Checkout BASE review criteria (per-run dir, fence-allowlisted prefix)
         uses: actions/checkout@v7
@@ -37,10 +40,10 @@ jobs:
 
       - name: Fetch PR context
         run: |
-          gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,baseRefName > /tmp/pr.json
-          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > /tmp/pr.diff
-          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits" --jq '.[] | .commit.message | split("\n")[0]' > /tmp/pr-commits.txt
-          grep -q '[^[:space:]]' /tmp/pr-commits.txt || { echo "pr-commits.txt effectively empty — fetch failed"; exit 1; }
+          gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json title,body,baseRefName > /tmp/pr-${PR_NUMBER}.json
+          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" > /tmp/pr-${PR_NUMBER}.diff
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits" --jq '.[] | .commit.message | split("\n")[0]' > /tmp/pr-${PR_NUMBER}-commits.txt
+          grep -q '[^[:space:]]' /tmp/pr-${PR_NUMBER}-commits.txt || { echo "pr-${PR_NUMBER}-commits.txt effectively empty — fetch failed"; exit 1; }
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,12 +55,17 @@ jobs:
           done
           echo "Preflight OK: base criteria readable"
 
-      - name: Count prior review rounds (round cap = 3)
+      - name: Count review rounds since the last reset marker (round cap = 3)
         id: rounds
         run: |
+          # /reset-rounds posts a "**Review rounds reset**" marker instead of deleting
+          # comments; count only round comments at/after the newest marker.
+          SINCE=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select(.user.login == "${{ vars.REVIEW_BOT_LOGIN }}" or .user.login == "github-actions[bot]") | select(.body | startswith("**Review rounds reset")) | .created_at] | max // "1970-01-01T00:00:00Z"')
           PREV=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "${{ vars.REVIEW_BOT_LOGIN }}" or .user.login == "github-actions[bot]") | select(.body | startswith("**Review (round"))] | length')
+            --jq "[.[] | select(.user.login == \"${{ vars.REVIEW_BOT_LOGIN }}\" or .user.login == \"github-actions[bot]\") | select(.body | startswith(\"**Review (round\")) | select(.created_at >= \"$SINCE\")] | length")
           echo "count=$PREV" >> "$GITHUB_OUTPUT"
+          echo "since=$SINCE" >> "$GITHUB_OUTPUT"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,7 +73,7 @@ jobs:
       - name: Round cap reached — stop reviewing
         if: steps.rounds.outputs.count >= 3
         run: |
-          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq '[.[] | select(.user.login == "github-actions[bot]") | select(.body | startswith("**Review round cap reached"))] | length' | grep -q '[1-9]'; then
+          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --jq "[.[] | select(.user.login == \"github-actions[bot]\") | select(.body | startswith(\"**Review round cap reached\")) | select(.created_at >= \"${{ steps.rounds.outputs.since }}\")] | length" | grep -q '[1-9]'; then
             gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "**Review round cap reached** (3). Per the round discipline: stop iterating, rethink the approach (Layer 0), then open a fresh PR or push a restructured change. If the restructured approach lands in THIS PR, reset the round counter with a /reset-rounds comment (see reset-rounds.yml)."
           fi
           exit 0
@@ -80,23 +88,23 @@ jobs:
           # NO --auto-approve: on vibe 3.0.2 it bypasses the read_file denylist
           # in the fenced VIBE_HOME (verified live). Without it, denied reads
           # fail instantly without hanging, so headless mode still works.
-          cat > /tmp/pr-prompt.txt <<'PROMPT_EOF'
+          cat > /tmp/pr-${PR_NUMBER}-prompt.txt <<'PROMPT_EOF'
           You are the independent code reviewer (Layer 2/3) for a solo-developer repo.
 
           Read these files in __BASE_DIR__ (the BASE branch's checkout —
           the review criteria are deliberately the base's, not the PR's;
-          the PR's changes reach you only via /tmp/pr.diff):
+          the PR's changes reach you only via __PRTMP__.diff):
           - REVIEW.md (what failure looks like here — review against these modes, ignore non-findings)
           - CRITICAL_PATHS.md (if the diff touches any path, say "RISK:HIGH" in your verdict)
           - docs/top-trumps-spec.md (draft spec — the diff must respect its hard constraints)
 
           Also read (fetched outside the checkout):
-          - /tmp/pr.json (PR title + change note)
-          - /tmp/pr-commits.txt (commit list)
-          - /tmp/pr.diff (the diff to review)
+          - __PRTMP__.json (PR title + change note)
+          - __PRTMP__-commits.txt (commit list)
+          - __PRTMP__.diff (the diff to review)
 
           On re-reviews the diff is cumulative — focus on the newest commits
-          listed in /tmp/pr-commits.txt relative to prior review rounds.
+          listed in __PRTMP__-commits.txt relative to prior review rounds.
 
           Output rules (this is posted to the PR verbatim):
           - Start with "**Review (round ${{ steps.rounds.outputs.count }})**" then a numbered list of findings.
@@ -106,14 +114,15 @@ jobs:
           - If nothing is wrong: the round header line, then exactly "No findings." on the next line. Do not pad. Do not give style feedback.
           - Never suggest merging; the merge decision is the human's.
           PROMPT_EOF
-          sed -i "s|__BASE_DIR__|$BASE_DIR|g" /tmp/pr-prompt.txt
+          sed -i "s|__BASE_DIR__|$BASE_DIR|g" /tmp/pr-${PR_NUMBER}-prompt.txt
+          sed -i "s|__PRTMP__|/tmp/pr-${PR_NUMBER}|g" /tmp/pr-${PR_NUMBER}-prompt.txt
           VIBE_HOME=/opt/review-agent/vibe-home \
-          vibe -p --output text < /tmp/pr-prompt.txt > /tmp/review.md
-          grep -q '\*\*Review (round' /tmp/review.md || { echo "malformed review output — refusing to post"; exit 1; }
+          vibe -p --output text < /tmp/pr-${PR_NUMBER}-prompt.txt > /tmp/review-${PR_NUMBER}.md
+          grep -q '\*\*Review (round' /tmp/review-${PR_NUMBER}.md || { echo "malformed review output — refusing to post"; exit 1; }
 
       - name: Post findings
         if: steps.rounds.outputs.count < 3
-        run: gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/review.md
+        run: gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/review-${PR_NUMBER}.md
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,6 +134,7 @@ jobs:
             /tmp/pr-review-base-????) rm -rf "$BASE_DIR" ;;
             *) echo "BASE_DIR unexpected: '$BASE_DIR' — not removing" ;;
           esac
+          rm -f /tmp/pr-${PR_NUMBER}.json /tmp/pr-${PR_NUMBER}.diff /tmp/pr-${PR_NUMBER}-commits.txt /tmp/pr-${PR_NUMBER}-prompt.txt /tmp/review-${PR_NUMBER}.md
 
       - name: Post pipeline-failure diagnostic (never a code finding)
         if: failure()

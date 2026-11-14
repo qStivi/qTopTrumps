@@ -267,6 +267,13 @@ jobs:
               -f body="**PR preview** — PR closed (or back to draft); preview processes stopped and checkout removed."
           fi
 
+      - name: Post teardown-failure diagnostic (never a code finding)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "**Preview teardown failed** — the preview may still be running on the self-hosted runner (processes, port, or registry entry possibly left behind). This is NOT a code finding; the red check means the teardown is broken, not the change. Mechanical cause: see the [run logs]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+
 
   settle:
     # See the NOTE in the file header: the preview job's steps spawn the

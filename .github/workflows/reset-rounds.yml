@@ -1,8 +1,10 @@
 name: Reset review rounds
 
 # Slash-command maintenance for the review round cap: posting `/reset-rounds`
-# on a PR deletes the bot's review-round comments — which is exactly what the
-# round counter in review.yml counts — so the next review starts at round 0.
+# on a PR posts a "**Review rounds reset**" marker comment. The round counter
+# in review.yml counts only "**Review (round N)**" comments at/after the newest
+# marker, so the next review starts at round 0. Nothing is deleted — round
+# comments stay on the PR as history.
 # Use case per round discipline: "same PR, restructured approach" after the
 # cap was hit or after a rethink. Only the repo owner may trigger it.
 
@@ -22,19 +24,10 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Delete review round comments
+      - name: Post reset marker (round comments are kept as history)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          set -euo pipefail
-          IDS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '[.[] | select(.user.login == "${{ vars.REVIEW_BOT_LOGIN }}" or .user.login == "github-actions[bot]") |
-                   select(.body | startswith("**Review (round") or startswith("**Review round cap reached")) | .id] | .[]')
-          FOUND=$(printf '%s' "$IDS" | grep -c '[0-9]' || true)
-          for id in $IDS; do
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/comments/$id"
-          done
-          echo "Deleted $FOUND round comment(s)"
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "**Review rounds reset** — deleted $FOUND round comment(s). The next review starts at round 0."
+            --body "**Review rounds reset** — the next review starts at round 0. Round comments are kept as history; the counter counts only rounds posted after this marker."
